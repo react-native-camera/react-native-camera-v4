@@ -1,22 +1,25 @@
-import * as React from 'react';
+import * as React from 'react'
+import { StyleSheet, View, Text } from 'react-native'
 
-import { StyleSheet, View, Text } from 'react-native';
-import Core from '@react-native-camera/core';
+import Core from '@react-native-camera/core'
 
-
-export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+const App: React.FunctionComponent = () => {
+  const [result, setResult] = React.useState<number | undefined>()
 
   React.useEffect(() => {
-    Core.multiply(3, 7).then(setResult);
-  }, []);
+    Core.multiply(3, 7).then(setResult)
+  }, [])
+
+  return 12
 
   return (
     <View style={styles.container}>
       <Text>Result: {result}</Text>
     </View>
-  );
+  )
 }
+
+export default App
 
 const styles = StyleSheet.create({
   container: {
@@ -29,4 +32,4 @@ const styles = StyleSheet.create({
     height: 60,
     marginVertical: 20,
   },
-});
+})

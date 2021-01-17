@@ -1,4 +1,7 @@
 {
+  "compilerOptions": {
+    "noEmit": true
+  },
   "files": [],
   "include": [],
   "references": [
