@@ -1,15 +1,17 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "module": "CommonJS",
+    "module": "esnext",
     "jsx": "react",
-    "lib": ["es6"],
+    "lib": ["esnext"],
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "strict": true,
+    "resolveJsonModule": true
   }
 }
