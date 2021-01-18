@@ -138,10 +138,14 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
       val cameraView: RNCameraView
       try {
         cameraView = nativeViewHierarchyManager.resolveView(viewTag) as RNCameraView
-        if (requireOpen && cameraView.isCameraOpened()) {
-          run(cameraView)
+        if (requireOpen) {
+          if (cameraView.isCameraOpened()) {
+            run(cameraView)
+          } else {
+            run(null)
+          }
         } else {
-          run(null)
+          run(cameraView)
         }
       } catch (e: Exception) {
         e.printStackTrace()
