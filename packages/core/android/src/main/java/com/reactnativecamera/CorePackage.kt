@@ -1,4 +1,4 @@
-package com.reactnativecameracore
+package com.reactnativecamera
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
