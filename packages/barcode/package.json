@@ -1,0 +1,67 @@
+{
+  "name": "@react-native-camera/barcode",
+  "version": "0.1.0",
+  "description": "Barcode reader plugin",
+  "main": "lib/commonjs/index",
+  "module": "lib/module/index",
+  "types": "lib/typescript/src/index.d.ts",
+  "react-native": "src/index",
+  "source": "src/index",
+  "files": [
+    "src",
+    "lib",
+    "android",
+    "ios",
+    "cpp",
+    "react-native-camera-barcode.podspec",
+    "!lib/typescript/example",
+    "!android/build",
+    "!ios/build",
+    "!**/__tests__",
+    "!**/__fixtures__",
+    "!**/__mocks__"
+  ],
+  "scripts": {
+    "prepare": "bob build",
+    "example": "yarn --cwd example",
+    "pods": "cd example && pod-install --quiet"
+  },
+  "keywords": [
+    "react",
+    "react-native",
+    "ios",
+    "android",
+    "react-native-camera",
+    "barcode",
+    "reader"
+  ],
+  "repository": "https://github.com/react-native-camera/react-native-camera-v4",
+  "author": "Marco Scabbiolo <scabbiolo.marco@gmail.com> (https://github.com/react-native-camera)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/react-native-camera/react-native-camera-v4/issues"
+  },
+  "homepage": "https://github.com/react-native-camera/react-native-camera-v4#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "@react-native-camera/core": "^0.1.0",
+    "react": "*",
+    "react-native": "*"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      "commonjs",
+      "module",
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
+    ]
+  }
+}
