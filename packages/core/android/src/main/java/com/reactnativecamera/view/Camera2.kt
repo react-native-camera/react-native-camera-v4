@@ -47,7 +47,7 @@ import java.util.*
 
 @TargetApi(21)
 @RequiresApi(21)
-internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context: Context, bgHandler: Handler?) : CameraViewImpl(callback, preview, bgHandler), MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener {
+internal open class Camera2(callback: Callback, preview: PreviewImpl, context: Context, bgHandler: Handler) : CameraViewImpl(callback, preview, bgHandler), MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener {
   companion object {
     private const val TAG = "Camera2"
     private val INTERNAL_FACINGS = SparseIntArray()
@@ -223,7 +223,7 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
       return false
     }
     collectCameraInfo()
-    aspectRatio = mInitialRatio!!
+    setAspectRatio((mInitialRatio!!))
     mInitialRatio = null
     prepareStillImageReader()
     prepareScanImageReader()
@@ -257,106 +257,100 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
         mCallback.onRecordingEnd()
 
         // @TODO: implement videoOrientation and deviceOrientation calculation
-        mCallback.onVideoRecorded(mVideoPath, 0, 0)
+        mCallback.onVideoRecorded(mVideoPath!!, 0, 0)
         mIsRecording = false
       }
     }
   }
 
-  public override fun isCameraOpened(): Boolean {
-    return mCamera != null
-  }
+  override val isCameraOpened: Boolean
+    get() = mCamera != null
 
-  public override fun setFacing(facing: Int) {
-    if (mFacing == facing) {
-      return
+  override var facing: Int
+    get() = mFacing
+    set(facing) {
+      if (mFacing == facing) {
+        return
+      }
+      mFacing = facing
+      if (isCameraOpened) {
+        stop()
+        start()
+      }
     }
-    mFacing = facing
-    if (isCameraOpened) {
-      stop()
-      start()
+
+  override val supportedPreviewFpsRange: ArrayList<IntArray>
+    get() {
+      Log.e("CAMERA_2:: ", "getSupportedPreviewFpsRange is not currently supported for Camera2")
+      return ArrayList()
     }
-  }
 
-  public override fun getFacing(): Int {
-    return mFacing
-  }
+  override var cameraId: String?
+    get() = mCameraId
+    set(id) {
+      if (!objectEquals(_mCameraId, id)) {
+        _mCameraId = id
 
-  override fun getSupportedPreviewFpsRange(): ArrayList<IntArray> {
-    Log.e("CAMERA_2:: ", "getSupportedPreviewFpsRange is not currently supported for Camera2")
-    return ArrayList()
-  }
-
-  public override fun setCameraId(id: String) {
-    if (!objectEquals(_mCameraId, id)) {
-      _mCameraId = id
-
-      // only update if our camera ID actually changes
-      // from what we currently have.
-      // Passing null will always yield true
-      if (!objectEquals(_mCameraId, mCameraId)) {
-        // this will call chooseCameraIdByFacing
-        if (isCameraOpened) {
-          stop()
-          start()
+        // only update if our camera ID actually changes
+        // from what we currently have.
+        // Passing null will always yield true
+        if (!objectEquals(_mCameraId, mCameraId)) {
+          // this will call chooseCameraIdByFacing
+          if (isCameraOpened) {
+            stop()
+            start()
+          }
         }
       }
     }
-  }
 
-  public override fun getCameraId(): String {
-    return _mCameraId!!
-  }
+  override val supportedAspectRatios: Set<AspectRatio>
+    get() = mPreviewSizes.ratios()
 
-  public override fun getSupportedAspectRatios(): Set<AspectRatio> {
-    return mPreviewSizes.ratios()
-  }
-
-  public override fun getCameraIds(): List<Properties> {
-    return try {
-      val ids: MutableList<Properties> = ArrayList()
-      val cameraIds = mCameraManager.cameraIdList
-      for (id in cameraIds) {
-        val p = Properties()
-        val characteristics = mCameraManager.getCameraCharacteristics(id)
-        val internal = characteristics.get(CameraCharacteristics.LENS_FACING)
-        p["id"] = id
-        p["type"] = java.lang.String.valueOf(if (internal == CameraCharacteristics.LENS_FACING_FRONT) Constants.FACING_FRONT else Constants.FACING_BACK)
-        ids.add(p)
+  override val cameraIds: List<Properties>
+    get() {
+      return try {
+        val ids: MutableList<Properties> = ArrayList()
+        val cameraIds = mCameraManager.cameraIdList
+        for (id in cameraIds) {
+          val p = Properties()
+          val characteristics = mCameraManager.getCameraCharacteristics(id)
+          val internal = characteristics.get(CameraCharacteristics.LENS_FACING)
+          p["id"] = id
+          p["type"] = java.lang.String.valueOf(if (internal == CameraCharacteristics.LENS_FACING_FRONT) Constants.FACING_FRONT else Constants.FACING_BACK)
+          ids.add(p)
+        }
+        ids
+      } catch (e: CameraAccessException) {
+        throw RuntimeException("Failed to get a list of camera ids", e)
       }
-      ids
-    } catch (e: CameraAccessException) {
-      throw RuntimeException("Failed to get a list of camera ids", e)
     }
-  }
 
-  public override fun getAvailablePictureSizes(ratio: AspectRatio): SortedSet<Size> {
+  override fun getAvailablePictureSizes(ratio: AspectRatio): SortedSet<Size> {
     return mPictureSizes.sizes(ratio)!!
   }
 
-  public override fun setPictureSize(size: Size) {
-    if (mCaptureSession != null) {
-      try {
-        mCaptureSession!!.stopRepeating()
-      } catch (e: CameraAccessException) {
-        e.printStackTrace()
+  override var pictureSize: Size?
+    get() = mPictureSize
+    set(size) {
+      if (mCaptureSession != null) {
+        try {
+          mCaptureSession!!.stopRepeating()
+        } catch (e: CameraAccessException) {
+          e.printStackTrace()
+        }
+        mCaptureSession!!.close()
+        mCaptureSession = null
       }
-      mCaptureSession!!.close()
-      mCaptureSession = null
+      if (mStillImageReader != null) {
+        mStillImageReader!!.close()
+      }
+      mPictureSize = size
+      prepareStillImageReader()
+      startCaptureSession()
     }
-    if (mStillImageReader != null) {
-      mStillImageReader!!.close()
-    }
-    mPictureSize = size
-    prepareStillImageReader()
-    startCaptureSession()
-  }
 
-  public override fun getPictureSize(): Size {
-    return mPictureSize!!
-  }
-
-  public override fun setAspectRatio(ratio: AspectRatio): Boolean {
+  override fun setAspectRatio(ratio: AspectRatio): Boolean {
     if (mPreviewSizes.isEmpty) {
       mInitialRatio = ratio
       return false
@@ -376,64 +370,57 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
     return true
   }
 
-  public override fun getAspectRatio(): AspectRatio {
-    return mAspectRatio
-  }
+  override val aspectRatio: AspectRatio
+    get() = mAspectRatio
 
-  public override fun setAutoFocus(autoFocus: Boolean) {
-    if (mAutoFocus == autoFocus) {
-      return
-    }
-    mAutoFocus = autoFocus
-    if (mPreviewRequestBuilder != null) {
-      updateAutoFocus()
-      if (mCaptureSession != null) {
-        try {
-          mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
-            mCaptureCallback, null)
-        } catch (e: CameraAccessException) {
-          mAutoFocus = !mAutoFocus // Revert
+  override var autoFocus: Boolean
+    get() = mAutoFocus
+    set(autoFocus) {
+      if (mAutoFocus == autoFocus) {
+        return
+      }
+      mAutoFocus = autoFocus
+      if (mPreviewRequestBuilder != null) {
+        updateAutoFocus()
+        if (mCaptureSession != null) {
+          try {
+            mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
+              mCaptureCallback, null)
+          } catch (e: CameraAccessException) {
+            mAutoFocus = !mAutoFocus // Revert
+          }
         }
       }
     }
-  }
 
-  public override fun getAutoFocus(): Boolean {
-    return mAutoFocus
-  }
-
-  public override fun setFlash(flash: Int) {
-    if (mFlash == flash) {
-      return
-    }
-    val saved = mFlash
-    mFlash = flash
-    if (mPreviewRequestBuilder != null) {
-      updateFlash()
-      if (mCaptureSession != null) {
-        try {
-          mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
-            mCaptureCallback, null)
-        } catch (e: CameraAccessException) {
-          mFlash = saved // Revert
+  override var flash: Int
+    get() = mFlash
+    set(flash) {
+      if (mFlash == flash) {
+        return
+      }
+      val saved = mFlash
+      mFlash = flash
+      if (mPreviewRequestBuilder != null) {
+        updateFlash()
+        if (mCaptureSession != null) {
+          try {
+            mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
+              mCaptureCallback, null)
+          } catch (e: CameraAccessException) {
+            mFlash = saved // Revert
+          }
         }
       }
     }
-  }
 
-  public override fun getFlash(): Int {
-    return mFlash
-  }
+  override var exposureCompensation: Float
+    get() = mExposure
+    set(value) {
+      Log.e("CAMERA_2:: ", "Adjusting exposure is not currently supported for Camera2")
+    }
 
-  public override fun getExposureCompensation(): Float {
-    return mExposure
-  }
-
-  public override fun setExposureCompensation(exposure: Float) {
-    Log.e("CAMERA_2:: ", "Adjusting exposure is not currently supported for Camera2")
-  }
-
-  public override fun takePicture(options: ReadableMap) {
+  override fun takePicture(options: ReadableMap) {
     mCaptureCallback.options = options
     if (mAutoFocus) {
       lockFocus()
@@ -442,7 +429,7 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
     }
   }
 
-  public override fun record(path: String, maxDuration: Int, maxFileSize: Int, recordAudio: Boolean, profile: CamcorderProfile, orientation: Int, fps: Int): Boolean {
+  override fun record(path: String, maxDuration: Int, maxFileSize: Int, recordAudio: Boolean, profile: CamcorderProfile, orientation: Int, fps: Int): Boolean {
     if (!mIsRecording) {
       setUpMediaRecorder(path, maxDuration, maxFileSize, recordAudio, profile)
       return try {
@@ -465,7 +452,7 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
 
         // @TODO: implement videoOrientation and deviceOrientation calculation
         // same TODO as onVideoRecorded
-        mCallback.onRecordingStart(mVideoPath, 0, 0)
+        mCallback.onRecordingStart(mVideoPath!!, 0, 0)
         if (mPlaySoundOnRecord) {
           sound.play(MediaActionSound.START_VIDEO_RECORDING)
         }
@@ -492,124 +479,111 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
     }
   }
 
-  public override fun pauseRecording() {
+  override fun pauseRecording() {
     pauseMediaRecorder()
   }
 
-  public override fun resumeRecording() {
+  override fun resumeRecording() {
     resumeMediaRecorder()
   }
 
-  public override fun setFocusDepth(value: Float) {
-    if (mFocusDepth == value) {
-      return
-    }
-    val saved = mFocusDepth
-    mFocusDepth = value
-    if (mCaptureSession != null) {
-      updateFocusDepth()
-      try {
-        mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
-          mCaptureCallback, null)
-      } catch (e: CameraAccessException) {
-        mFocusDepth = saved // Revert
+  override var focusDepth: Float
+    get() = mFocusDepth
+    set(value) {
+      if (mFocusDepth == value) {
+        return
+      }
+      val saved = mFocusDepth
+      mFocusDepth = value
+      if (mCaptureSession != null) {
+        updateFocusDepth()
+        try {
+          mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
+            mCaptureCallback, null)
+        } catch (e: CameraAccessException) {
+          mFocusDepth = saved // Revert
+        }
       }
     }
-  }
 
-  public override fun getFocusDepth(): Float {
-    return mFocusDepth
-  }
-
-  public override fun setZoom(zoom: Float) {
-    if (mZoom == zoom) {
-      return
-    }
-    val saved = mZoom
-    mZoom = zoom
-    if (mCaptureSession != null) {
-      updateZoom()
-      try {
-        mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
-          mCaptureCallback, null)
-      } catch (e: CameraAccessException) {
-        mZoom = saved // Revert
+  override var zoom: Float
+    get() = mZoom
+    set(zoom) {
+      if (mZoom == zoom) {
+        return
+      }
+      val saved = mZoom
+      mZoom = zoom
+      if (mCaptureSession != null) {
+        updateZoom()
+        try {
+          mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
+            mCaptureCallback, null)
+        } catch (e: CameraAccessException) {
+          mZoom = saved // Revert
+        }
       }
     }
-  }
 
-  public override fun getZoom(): Float {
-    return mZoom
-  }
-
-  public override fun setWhiteBalance(whiteBalance: Int) {
-    if (mWhiteBalance == whiteBalance) {
-      return
-    }
-    val saved = mWhiteBalance
-    mWhiteBalance = whiteBalance
-    if (mCaptureSession != null) {
-      updateWhiteBalance()
-      try {
-        mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
-          mCaptureCallback, null)
-      } catch (e: CameraAccessException) {
-        mWhiteBalance = saved // Revert
+  override var whiteBalance: Int
+    get() = mWhiteBalance
+    set(whiteBalance) {
+      if (mWhiteBalance == whiteBalance) {
+        return
+      }
+      val saved = mWhiteBalance
+      mWhiteBalance = whiteBalance
+      if (mCaptureSession != null) {
+        updateWhiteBalance()
+        try {
+          mCaptureSession!!.setRepeatingRequest(mPreviewRequestBuilder!!.build(),
+            mCaptureCallback, null)
+        } catch (e: CameraAccessException) {
+          mWhiteBalance = saved // Revert
+        }
       }
     }
-  }
 
-  public override fun getWhiteBalance(): Int {
-    return mWhiteBalance
-  }
-
-  public override fun setPlaySoundOnCapture(playSoundOnCapture: Boolean) {
-    mPlaySoundOnCapture = playSoundOnCapture
-  }
-
-  public override fun getPlaySoundOnCapture(): Boolean {
-    return mPlaySoundOnCapture
-  }
-
-  public override fun setPlaySoundOnRecord(playSoundOnRecord: Boolean) {
-    mPlaySoundOnRecord = playSoundOnRecord
-  }
-
-  public override fun getPlaySoundOnRecord(): Boolean {
-    return mPlaySoundOnRecord
-  }
-
-  public override fun setScanning(isScanning: Boolean) {
-    if (mIsScanning == isScanning) {
-      return
+  override var playSoundOnCapture: Boolean
+    get() = mPlaySoundOnCapture
+    set(value) {
+      mPlaySoundOnCapture = value
     }
-    mIsScanning = isScanning
-    mImageFormat = if (!mIsScanning) {
-      ImageFormat.JPEG
-    } else {
-      ImageFormat.YUV_420_888
+
+  override var playSoundOnRecord: Boolean
+    get() = mPlaySoundOnRecord
+    set(value) {
+      mPlaySoundOnRecord = value
     }
-    if (mCaptureSession != null) {
-      mCaptureSession!!.close()
-      mCaptureSession = null
+
+  override var scanning: Boolean
+    get() = mIsScanning
+    set(isScanning) {
+      if (mIsScanning == isScanning) {
+        return
+      }
+      mIsScanning = isScanning
+      mImageFormat = if (!mIsScanning) {
+        ImageFormat.JPEG
+      } else {
+        ImageFormat.YUV_420_888
+      }
+      if (mCaptureSession != null) {
+        mCaptureSession!!.close()
+        mCaptureSession = null
+      }
+      startCaptureSession()
     }
-    startCaptureSession()
-  }
 
-  public override fun getScanning(): Boolean {
-    return mIsScanning
-  }
+  override val cameraOrientation: Int
+    get() = mCameraOrientation
 
-  public override fun getCameraOrientation(): Int {
-    return mCameraOrientation
-  }
-
-  public override fun setDisplayOrientation(displayOrientation: Int) {
+  override fun setDisplayOrientation(displayOrientation: Int) {
     mDisplayOrientation = displayOrientation
     mPreview.setDisplayOrientation(mDisplayOrientation)
   }
 
-  public override fun setDeviceOrientation(deviceOrientation: Int) {
+  override fun setDeviceOrientation(deviceOrientation: Int) {
     mDeviceOrientation = deviceOrientation
     //mPreview.setDisplayOrientation(deviceOrientation); // this is not needed and messes up the display orientation
   }
@@ -796,7 +770,7 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
       if (mIsScanning) {
         mPreviewRequestBuilder!!.addTarget(mScanImageReader!!.surface)
       }
-      mCamera!!.createCaptureSession(Arrays.asList(surface, mStillImageReader!!.surface,
+      mCamera!!.createCaptureSession(listOf(surface, mStillImageReader!!.surface,
         mScanImageReader!!.surface), mSessionCallback, null)
     } catch (e: CameraAccessException) {
       Log.e(TAG, "Failed to start capture session", e)
@@ -836,9 +810,8 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
     }
   }
 
-  override fun getPreviewSize(): Size {
-    return Size(mPreview.width, mPreview.height)
-  }
+  override val previewSize: Size
+    get() = Size(mPreview.width, mPreview.height)
 
   /**
    * Chooses the optimal preview size based on [.mPreviewSizes] and the surface size.
@@ -877,7 +850,7 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
       val modes = mCameraCharacteristics!!.get(
         CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES)
       // Auto focus is not supported
-      if (modes == null || modes.size == 0 ||
+      if (modes == null || modes.isEmpty() ||
         modes.size == 1 && modes[0] == CameraCharacteristics.CONTROL_AF_MODE_OFF) {
         mAutoFocus = false
         mPreviewRequestBuilder!!.set(CaptureRequest.CONTROL_AF_MODE,
@@ -1072,8 +1045,8 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
     val yCoordinate = (x * sensorArraySize.width().toFloat()).toInt()
     val halfTouchWidth = 150 //TODO: this doesn't represent actual touch size in pixel. Values range in [3, 10]...
     val halfTouchHeight = 150
-    return MeteringRectangle(Math.max(yCoordinate - halfTouchWidth, 0),
-      Math.max(xCoordinate - halfTouchHeight, 0),
+    return MeteringRectangle((yCoordinate - halfTouchWidth).coerceAtLeast(0),
+      (xCoordinate - halfTouchHeight).coerceAtLeast(0),
       halfTouchWidth * 2,
       halfTouchHeight * 2,
       MeteringRectangle.METERING_WEIGHT_MAX - 1)
@@ -1219,13 +1192,13 @@ internal open class Camera2(callback: Callback?, preview: PreviewImpl?, context:
     if (mPlaySoundOnRecord) {
       sound.play(MediaActionSound.STOP_VIDEO_RECORDING)
     }
-    if (mVideoPath == null || !File(mVideoPath).exists()) {
+    if (mVideoPath == null || !File(mVideoPath!!).exists()) {
       // @TODO: implement videoOrientation and deviceOrientation calculation
       mCallback.onVideoRecorded(null, 0, 0)
       return
     }
     // @TODO: implement videoOrientation and deviceOrientation calculation
-    mCallback.onVideoRecorded(mVideoPath, 0, 0)
+    mCallback.onVideoRecorded(mVideoPath!!, 0, 0)
     mVideoPath = null
   }
 

@@ -6,19 +6,33 @@ import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.ViewGroupManager
 import com.facebook.react.uimanager.annotations.ReactProp
+import com.reactnativecamera.CoreModule
 import java.util.*
 
 class RNCameraViewManager : ViewGroupManager<RNCameraView>() {
   enum class Events(private val mName: String) {
-    EVENT_CAMERA_READY("onCameraReady"), EVENT_ON_MOUNT_ERROR("onMountError"), EVENT_ON_BAR_CODE_READ("onBarCodeRead"), EVENT_ON_FACES_DETECTED("onFacesDetected"), EVENT_ON_BARCODES_DETECTED("onGoogleVisionBarcodesDetected"), EVENT_ON_FACE_DETECTION_ERROR("onFaceDetectionError"), EVENT_ON_BARCODE_DETECTION_ERROR("onGoogleVisionBarcodeDetectionError"), EVENT_ON_TEXT_RECOGNIZED("onTextRecognized"), EVENT_ON_PICTURE_TAKEN("onPictureTaken"), EVENT_ON_PICTURE_SAVED("onPictureSaved"), EVENT_ON_RECORDING_START("onRecordingStart"), EVENT_ON_RECORDING_END("onRecordingEnd"), EVENT_ON_TOUCH("onTouch");
+    EVENT_CAMERA_READY("onCameraReady"),
+    EVENT_ON_MOUNT_ERROR("onMountError"),
+    EVENT_ON_TEXT_RECOGNIZED("onTextRecognized"),
+    EVENT_ON_PICTURE_TAKEN("onPictureTaken"),
+    EVENT_ON_PICTURE_SAVED("onPictureSaved"),
+    EVENT_ON_RECORDING_START("onRecordingStart"),
+    EVENT_ON_RECORDING_END("onRecordingEnd"),
+    EVENT_ON_TOUCH("onTouch");
 
     override fun toString(): String {
       return mName
     }
   }
 
+  var mModule: CoreModule? = null
+
   override fun onDropViewInstance(view: RNCameraView) {
     view.onHostDestroy()
+    view.plugins.forEach { (name, plugin) ->
+      plugin.dispose()
+      module.getPluginManager(name).detachCameraInstance(view.id)
+    }
     super.onDropViewInstance(view)
   }
 
@@ -112,28 +126,6 @@ class RNCameraViewManager : ViewGroupManager<RNCameraView>() {
     view.playSoundOnRecord = playSoundOnRecord
   }
 
-  @ReactProp(name = "barCodeTypes")
-  fun setBarCodeTypes(view: RNCameraView, barCodeTypes: ReadableArray?) {
-    if (barCodeTypes == null) {
-      return
-    }
-    val result: MutableList<String?> = ArrayList(barCodeTypes.size())
-    for (i in 0 until barCodeTypes.size()) {
-      result.add(barCodeTypes.getString(i))
-    }
-    view.setBarCodeTypes(result)
-  }
-
-  @ReactProp(name = "detectedImageInEvent")
-  fun setDetectedImageInEvent(view: RNCameraView, detectedImageInEvent: Boolean) {
-    view.setDetectedImageInEvent(detectedImageInEvent)
-  }
-
-  @ReactProp(name = "barCodeScannerEnabled")
-  fun setBarCodeScanning(view: RNCameraView, barCodeScannerEnabled: Boolean) {
-    view.setShouldScanBarCodes(barCodeScannerEnabled)
-  }
-
   @ReactProp(name = "useCamera2Api")
   fun setUseCamera2Api(view: RNCameraView, useCamera2Api: Boolean) {
     view.setUsingCamera2Api(useCamera2Api)
@@ -144,63 +136,6 @@ class RNCameraViewManager : ViewGroupManager<RNCameraView>() {
     view.setShouldDetectTouches(touchDetectorEnabled)
   }
 
-  @ReactProp(name = "faceDetectorEnabled")
-  fun setFaceDetecting(view: RNCameraView, faceDetectorEnabled: Boolean) {
-    view.setShouldDetectFaces(faceDetectorEnabled)
-  }
-
-  @ReactProp(name = "faceDetectionMode")
-  fun setFaceDetectionMode(view: RNCameraView, mode: Int) {
-    view.setFaceDetectionMode(mode)
-  }
-
-  @ReactProp(name = "faceDetectionLandmarks")
-  fun setFaceDetectionLandmarks(view: RNCameraView, landmarks: Int) {
-    view.setFaceDetectionLandmarks(landmarks)
-  }
-
-  @ReactProp(name = "faceDetectionClassifications")
-  fun setFaceDetectionClassifications(view: RNCameraView, classifications: Int) {
-    view.setFaceDetectionClassifications(classifications)
-  }
-
-  @ReactProp(name = "trackingEnabled")
-  fun setTracking(view: RNCameraView, trackingEnabled: Boolean) {
-    view.setTracking(trackingEnabled)
-  }
-
-  @ReactProp(name = "googleVisionBarcodeDetectorEnabled")
-  fun setGoogleVisionBarcodeDetecting(view: RNCameraView, googleBarcodeDetectorEnabled: Boolean) {
-    view.setShouldGoogleDetectBarcodes(googleBarcodeDetectorEnabled)
-  }
-
-  @ReactProp(name = "googleVisionBarcodeType")
-  fun setGoogleVisionBarcodeType(view: RNCameraView, barcodeType: Int) {
-    view.setGoogleVisionBarcodeType(barcodeType)
-  }
-
-  @ReactProp(name = "googleVisionBarcodeMode")
-  fun setGoogleVisionBarcodeMode(view: RNCameraView, barcodeMode: Int) {
-    view.setGoogleVisionBarcodeMode(barcodeMode)
-  }
-
-  @ReactProp(name = "textRecognizerEnabled")
-  fun setTextRecognizing(view: RNCameraView, textRecognizerEnabled: Boolean) {
-    view.setShouldRecognizeText(textRecognizerEnabled)
-  }
-
-  /**---limit scan area addition--- */
-  @ReactProp(name = "rectOfInterest")
-  fun setRectOfInterest(view: RNCameraView, coordinates: ReadableMap?) {
-    if (coordinates != null) {
-      val x = coordinates.getDouble("x").toFloat()
-      val y = coordinates.getDouble("y").toFloat()
-      val width = coordinates.getDouble("width").toFloat()
-      val height = coordinates.getDouble("height").toFloat()
-      view.setRectOfInterest(x, y, width, height)
-    }
-  }
-
   @ReactProp(name = "cameraViewDimensions")
   fun setCameraViewDimensions(view: RNCameraView, dimensions: ReadableMap?) {
     if (dimensions != null) {
@@ -209,6 +144,39 @@ class RNCameraViewManager : ViewGroupManager<RNCameraView>() {
       view.setCameraViewDimensions(cameraViewWidth, cameraViewHeight)
     }
   }
+
+  @ReactProp(name = "plugins")
+  fun setPlugins(view: RNCameraView, plugins: ReadableArray?) {
+    val pluginList = mutableListOf<String>()
+
+    if (plugins != null) {
+      for (i in 0 until plugins.size()) {
+        val plugin = plugins.getString(i)
+        if (plugin != null) {
+          pluginList.add((plugin))
+        }
+      }
+    }
+
+    // Remove plugins
+    view.plugins.forEach { (name, plugin) ->
+      if (!pluginList.contains(name)) {
+        plugin.dispose()
+        view.plugins.remove(name)
+      }
+    }
+
+    // Add plugins
+    pluginList.forEach {
+      if (!pluginList.contains((it))) {
+        view.plugins[it] = module.getPluginManager(it).attachCameraInstance(view)
+      }
+    }
+  }
+
+  private val module: CoreModule
+    get() = mModule
+      ?: throw Error("RNCameraViewManager does not have an associated CoreModule, cannot integrate plugins")
 
   /**---limit scan area addition--- */
   companion object {

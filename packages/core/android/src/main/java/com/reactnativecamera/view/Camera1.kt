@@ -36,7 +36,7 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Handler?) : CameraViewImpl(callback, preview, bgHandler), MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener, PreviewCallback {
+internal class Camera1(callback: Callback, preview: PreviewImpl, bgHandler: Handler) : CameraViewImpl(callback, preview, bgHandler), MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener, PreviewCallback {
   companion object {
     private const val INVALID_CAMERA_ID = -1
     private val FLASH_MODES = SparseArrayCompat<String>()
@@ -139,7 +139,7 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
       // do not set it up. Surface handler will do it for us
       // once ready.
       // This prevents some redundant camera work
-      if (mPreview.isReady()) {
+      if (mPreview.isReady) {
         setUpPreview()
         if (mShowingPreview) {
           startCameraPreview()
@@ -171,7 +171,7 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
         if (mIsRecording.get()) {
           mCallback.onRecordingEnd()
           val deviceOrientation: Int = displayOrientationToOrientationEnum(mDeviceOrientation)
-          mCallback.onVideoRecorded(mVideoPath, if (mOrientation != Constants.ORIENTATION_AUTO) mOrientation else deviceOrientation, deviceOrientation)
+          mCallback.onVideoRecorded(mVideoPath!!, if (mOrientation != Constants.ORIENTATION_AUTO) mOrientation else deviceOrientation, deviceOrientation)
         }
       }
       if (mCamera != null) {
@@ -251,75 +251,72 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
     }
   }
 
-  public override fun isCameraOpened(): Boolean {
-    return mCamera != null
-  }
+  override val isCameraOpened: Boolean
+    get() = mCamera != null
 
-  public override fun setFacing(facing: Int) {
-    if (mFacing == facing) {
-      return
-    }
-    mFacing = facing
-    mBgHandler.post {
-      if (isCameraOpened) {
-        stop()
-        start()
+  override var facing: Int
+    get() = mFacing
+    set(facing) {
+      if (mFacing == facing) {
+        return
+      }
+      mFacing = facing
+      mBgHandler.post {
+        if (isCameraOpened) {
+          stop()
+          start()
+        }
       }
     }
-  }
 
-  public override fun getFacing(): Int {
-    return mFacing
-  }
+  override var cameraId: String?
+    get() = _mCameraId
+    set(id) {
+      if (!objectEquals(_mCameraId, id)) {
+        _mCameraId = id
 
-  public override fun setCameraId(id: String) {
-    if (!objectEquals(_mCameraId, id)) {
-      _mCameraId = id
-
-      // only update if our camera ID actually changes
-      // from what we currently have.
-      // Passing null will always yield true
-      if (!objectEquals(_mCameraId, mCameraId.toString())) {
-        // this will call chooseCamera
-        mBgHandler.post {
-          if (isCameraOpened) {
-            stop()
-            start()
+        // only update if our camera ID actually changes
+        // from what we currently have.
+        // Passing null will always yield true
+        if (!objectEquals(_mCameraId, mCameraId.toString())) {
+          // this will call chooseCamera
+          mBgHandler.post {
+            if (isCameraOpened) {
+              stop()
+              start()
+            }
           }
         }
       }
     }
-  }
 
-  public override fun getCameraId(): String {
-    return (_mCameraId)!!
-  }
-
-  public override fun getSupportedAspectRatios(): Set<AspectRatio> {
-    val idealAspectRatios = mPreviewSizes
-    for (aspectRatio: AspectRatio? in idealAspectRatios.ratios()) {
-      if (mPictureSizes.sizes(aspectRatio) == null) {
-        idealAspectRatios.remove(aspectRatio)
+  override val supportedAspectRatios: Set<AspectRatio>
+    get() {
+      val idealAspectRatios = mPreviewSizes
+      for (aspectRatio: AspectRatio? in idealAspectRatios.ratios()) {
+        if (mPictureSizes.sizes(aspectRatio) == null) {
+          idealAspectRatios.remove(aspectRatio)
+        }
       }
+      return idealAspectRatios.ratios()
     }
-    return idealAspectRatios.ratios()
-  }
 
-  public override fun getCameraIds(): List<Properties> {
-    val ids: MutableList<Properties> = ArrayList()
-    val info = CameraInfo()
-    var i = 0
-    val count = Camera.getNumberOfCameras()
-    while (i < count) {
-      val p = Properties()
-      Camera.getCameraInfo(i, info)
-      p["id"] = i.toString()
-      p["type"] = info.facing.toString()
-      ids.add(p)
-      i++
+  override val cameraIds: List<Properties>
+    get() {
+      val ids: MutableList<Properties> = ArrayList()
+      val info = CameraInfo()
+      var i = 0
+      val count = Camera.getNumberOfCameras()
+      while (i < count) {
+        val p = Properties()
+        Camera.getCameraInfo(i, info)
+        p["id"] = i.toString()
+        p["type"] = info.facing.toString()
+        ids.add(p)
+        i++
+      }
+      return ids
     }
-    return ids
-  }
 
   public override fun getAvailablePictureSizes(ratio: AspectRatio): SortedSet<Size> {
     return (mPictureSizes.sizes(ratio))!!
@@ -346,33 +343,33 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
     return result
   }
 
-  public override fun setPictureSize(size: Size) {
+  override var pictureSize: Size?
+    get() = mPictureSize
+    set(size) {
+      // if no changes, don't do anything
+      if (mPictureSize == null) {
+        return
+      } else if (size == mPictureSize) {
+        return
+      }
+      mPictureSize = size
 
-    // if no changes, don't do anything
-    if (mPictureSize == null) {
-      return
-    } else if (size == mPictureSize) {
-      return
-    }
-    mPictureSize = size
-
-    // if camera is opened, request parameters update
-    if (isCameraOpened) {
-      mBgHandler.post {
-        synchronized(this@Camera1) {
-          if (mCamera != null) {
-            adjustCameraParameters()
+      // if camera is opened, request parameters update
+      if (isCameraOpened) {
+        mBgHandler.post {
+          synchronized(this@Camera1) {
+            if (mCamera != null) {
+              adjustCameraParameters()
+            }
           }
         }
       }
     }
-  }
 
-  public override fun getPictureSize(): Size {
-    return (mPictureSize)!!
-  }
+  override val aspectRatio: AspectRatio?
+    get() = mAspectRatio
 
-  public override fun setAspectRatio(ratio: AspectRatio): Boolean {
+  override fun setAspectRatio(ratio: AspectRatio): Boolean {
     if (mAspectRatio == null || !isCameraOpened) {
       // Handle this later when camera is opened
       mAspectRatio = ratio
@@ -397,131 +394,115 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
     return false
   }
 
-  public override fun getAspectRatio(): AspectRatio {
-    return (mAspectRatio)!!
-  }
-
-  public override fun setAutoFocus(autoFocus: Boolean) {
-    if (mAutoFocus == autoFocus) {
-      return
+  override var autoFocus: Boolean
+    get() {
+      if (!isCameraOpened) {
+        return mAutoFocus
+      }
+      val focusMode = mCameraParameters!!.focusMode
+      return focusMode != null && focusMode.contains("continuous")
     }
-    synchronized(this) {
-      if (setAutoFocusInternal(autoFocus)) {
+    set(autoFocus) {
+      if (mAutoFocus == autoFocus) {
+        return
+      }
+      synchronized(this) {
+        if (setAutoFocusInternal(autoFocus)) {
+          try {
+            if (mCamera != null) {
+              mCamera!!.parameters = mCameraParameters
+            }
+          } catch (e: RuntimeException) {
+            Log.e("CAMERA_1::", "setParameters failed", e)
+          }
+        }
+      }
+    }
+
+  override var flash: Int
+    get() = mFlash
+    set(flash) {
+      if (flash == mFlash) {
+        return
+      }
+      if (setFlashInternal(flash)) {
         try {
           if (mCamera != null) {
-            mCamera!!.setParameters(mCameraParameters)
+            mCamera!!.parameters = mCameraParameters
           }
         } catch (e: RuntimeException) {
           Log.e("CAMERA_1::", "setParameters failed", e)
         }
       }
     }
-  }
 
-  public override fun getAutoFocus(): Boolean {
-    if (!isCameraOpened) {
-      return mAutoFocus
-    }
-    val focusMode = mCameraParameters!!.focusMode
-    return focusMode != null && focusMode.contains("continuous")
-  }
-
-  public override fun setFlash(flash: Int) {
-    if (flash == mFlash) {
-      return
-    }
-    if (setFlashInternal(flash)) {
-      try {
-        if (mCamera != null) {
-          mCamera!!.parameters = mCameraParameters
+  override var exposureCompensation: Float
+    get() = mExposure
+    set(exposure) {
+      if (exposure == mExposure) {
+        return
+      }
+      if (setExposureInternal(exposure)) {
+        try {
+          if (mCamera != null) {
+            mCamera!!.parameters = mCameraParameters
+          }
+        } catch (e: RuntimeException) {
+          Log.e("CAMERA_1::", "setParameters failed", e)
         }
-      } catch (e: RuntimeException) {
-        Log.e("CAMERA_1::", "setParameters failed", e)
       }
     }
-  }
 
-  public override fun getFlash(): Int {
-    return mFlash
-  }
-
-  public override fun getExposureCompensation(): Float {
-    return mExposure
-  }
-
-  public override fun setExposureCompensation(exposure: Float) {
-    if (exposure == mExposure) {
-      return
+  override var focusDepth: Float
+    get() = 0.toFloat()
+    set(value) {
+      // not supported for Camera1
     }
-    if (setExposureInternal(exposure)) {
-      try {
-        if (mCamera != null) {
-          mCamera!!.parameters = mCameraParameters
+
+  override var zoom: Float
+    get() = mZoom
+    set(zoom) {
+      if (zoom == mZoom) {
+        return
+      }
+      if (setZoomInternal(zoom)) {
+        try {
+          if (mCamera != null) {
+            mCamera!!.parameters = mCameraParameters
+          }
+        } catch (e: RuntimeException) {
+          Log.e("CAMERA_1::", "setParameters failed", e)
         }
-      } catch (e: RuntimeException) {
-        Log.e("CAMERA_1::", "setParameters failed", e)
       }
     }
-  }
 
-  public override fun setFocusDepth(value: Float) {
-    // not supported for Camera1
-  }
-
-  public override fun getFocusDepth(): Float {
-    return 0 as Float
-  }
-
-  public override fun setZoom(zoom: Float) {
-    if (zoom == mZoom) {
-      return
-    }
-    if (setZoomInternal(zoom)) {
-      try {
-        if (mCamera != null) {
-          mCamera!!.parameters = mCameraParameters
+  override var whiteBalance: Int
+    get() = mWhiteBalance
+    set(whiteBalance) {
+      if (whiteBalance == mWhiteBalance) {
+        return
+      }
+      if (setWhiteBalanceInternal(whiteBalance)) {
+        try {
+          if (mCamera != null) {
+            mCamera!!.parameters = mCameraParameters
+          }
+        } catch (e: RuntimeException) {
+          Log.e("CAMERA_1::", "setParameters failed", e)
         }
-      } catch (e: RuntimeException) {
-        Log.e("CAMERA_1::", "setParameters failed", e)
       }
     }
-  }
 
-  public override fun getZoom(): Float {
-    return mZoom
-  }
-
-  public override fun setWhiteBalance(whiteBalance: Int) {
-    if (whiteBalance == mWhiteBalance) {
-      return
-    }
-    if (setWhiteBalanceInternal(whiteBalance)) {
-      try {
-        if (mCamera != null) {
-          mCamera!!.parameters = mCameraParameters
-        }
-      } catch (e: RuntimeException) {
-        Log.e("CAMERA_1::", "setParameters failed", e)
+  override var scanning: Boolean
+    get() = mIsScanning
+    set(isScanning) {
+      if (isScanning == mIsScanning) {
+        return
       }
+      setScanningInternal(isScanning)
     }
-  }
 
-  public override fun getWhiteBalance(): Int {
-    return mWhiteBalance
-  }
-
-  public override fun setScanning(isScanning: Boolean) {
-    if (isScanning == mIsScanning) {
-      return
-    }
-    setScanningInternal(isScanning)
-  }
-
-  public override fun getScanning(): Boolean {
-    return mIsScanning
-  }
-
-  public override fun takePicture(options: ReadableMap) {
+  override fun takePicture(options: ReadableMap) {
     if (!isCameraOpened) {
       throw IllegalStateException(
         "Camera is not ready. Call start() before takePicture().")
@@ -677,19 +658,18 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
     }
   }
 
-  public override fun pauseRecording() {
+  override fun pauseRecording() {
     pauseMediaRecorder()
   }
 
-  public override fun resumeRecording() {
+  override fun resumeRecording() {
     resumeMediaRecorder()
   }
 
-  public override fun getCameraOrientation(): Int {
-    return mCameraInfo.orientation
-  }
+  override val cameraOrientation: Int
+    get() = mCameraInfo.orientation
 
-  public override fun setDisplayOrientation(displayOrientation: Int) {
+  override fun setDisplayOrientation(displayOrientation: Int) {
     synchronized(this) {
       if (mDisplayOrientation == displayOrientation) {
         return
@@ -754,10 +734,11 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
     })
   }
 
-  override fun getPreviewSize(): Size {
-    val cameraSize = mCameraParameters!!.previewSize
-    return Size(cameraSize.width, cameraSize.height)
-  }
+  override val previewSize: Size
+    get() {
+      val cameraSize = mCameraParameters!!.previewSize
+      return Size(cameraSize.width, cameraSize.height)
+    }
 
   /**
    * This rewrites [.mCameraId] and [.mCameraInfo].
@@ -906,7 +887,7 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
     setAutoFocusInternal(mAutoFocus)
     setFlashInternal(mFlash)
     setExposureInternal(mExposure)
-    aspectRatio = (mAspectRatio)!!
+    setAspectRatio(mAspectRatio!!)
     setZoomInternal(mZoom)
     setWhiteBalanceInternal(mWhiteBalance)
     setScanningInternal(mIsScanning)
@@ -1265,24 +1246,20 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
     }
   }
 
-  public override fun setPlaySoundOnCapture(playSoundOnCapture: Boolean) {
-    if (playSoundOnCapture == mPlaySoundOnCapture) {
-      return
+  override var playSoundOnCapture: Boolean
+    get() = mPlaySoundOnCapture
+    set(playSoundOnCapture) {
+      if (playSoundOnCapture == mPlaySoundOnCapture) {
+        return
+      }
+      setPlaySoundInternal(playSoundOnCapture)
     }
-    setPlaySoundInternal(playSoundOnCapture)
-  }
 
-  public override fun getPlaySoundOnCapture(): Boolean {
-    return mPlaySoundOnCapture
-  }
-
-  public override fun setPlaySoundOnRecord(playSoundOnRecord: Boolean) {
-    mPlaySoundOnRecord = playSoundOnRecord
-  }
-
-  public override fun getPlaySoundOnRecord(): Boolean {
-    return mPlaySoundOnRecord
-  }
+  override var playSoundOnRecord: Boolean
+    get() = mPlaySoundOnRecord
+    set(value) {
+      mPlaySoundOnRecord = value
+    }
 
   override fun onPreviewFrame(data: ByteArray, camera: Camera) {
     val previewSize = mCameraParameters!!.previewSize
@@ -1360,9 +1337,8 @@ internal class Camera1(callback: Callback?, preview: PreviewImpl, bgHandler: Han
     }
   }
 
-  override fun getSupportedPreviewFpsRange(): ArrayList<IntArray> {
-    return mCameraParameters!!.supportedPreviewFpsRange as ArrayList<IntArray>
-  }
+  override val supportedPreviewFpsRange: ArrayList<IntArray>
+    get() = mCameraParameters!!.supportedPreviewFpsRange as ArrayList<IntArray>
 
   private fun isCompatibleWithDevice(fps: Int): Boolean {
     val validValues: ArrayList<IntArray> = supportedPreviewFpsRange

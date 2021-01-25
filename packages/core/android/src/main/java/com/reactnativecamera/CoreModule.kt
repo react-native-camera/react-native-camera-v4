@@ -17,118 +17,59 @@ import kotlin.collections.HashMap
 class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaModule(reactContext) {
   private val mScopedContext: ScopedContext = ScopedContext(reactContext)
 
+  private val pluginManagers = mutableMapOf<String, PluginManager<*>>()
+
+  fun registerPluginManager(pluginManager: PluginManager<*>) {
+    pluginManagers[pluginManager.name] = pluginManager
+  }
+
+  fun getPluginManager(name: String): PluginManager<*> {
+    return pluginManagers[name] ?: throw Error("Camera plugin $name was not found")
+  }
+
   override fun getName(): String {
     return "RNCameraModule"
   }
 
   override fun getConstants(): MutableMap<String, Any> {
-    return Collections.unmodifiableMap(object : HashMap<String, Any>() {
-      private val typeConstants: Map<String, Any>
-        private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-          init {
-            put("front", Constants.FACING_FRONT)
-            put("back", Constants.FACING_BACK)
-          }
-        })
-      private val flashModeConstants: Map<String, Any>
-        private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-          init {
-            put("off", Constants.FLASH_OFF)
-            put("on", Constants.FLASH_ON)
-            put("auto", Constants.FLASH_AUTO)
-            put("torch", Constants.FLASH_TORCH)
-          }
-        })
-      private val autoFocusConstants: Map<String, Any>
-        private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-          init {
-            put("on", true)
-            put("off", false)
-          }
-        })
-      private val whiteBalanceConstants: Map<String, Any>
-        private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-          init {
-            put("auto", Constants.WB_AUTO)
-            put("cloudy", Constants.WB_CLOUDY)
-            put("sunny", Constants.WB_SUNNY)
-            put("shadow", Constants.WB_SHADOW)
-            put("fluorescent", Constants.WB_FLUORESCENT)
-            put("incandescent", Constants.WB_INCANDESCENT)
-          }
-        })
-      private val videoQualityConstants: Map<String, Any>
-        private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-          init {
-            put("2160p", VIDEO_2160P)
-            put("1080p", VIDEO_1080P)
-            put("720p", VIDEO_720P)
-            put("480p", VIDEO_480P)
-            put("4:3", VIDEO_4x3)
-          }
-        })
-      private val googleVisionBarcodeModeConstants: Map<String, Any>
-        private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-          init {
-            put("NORMAL", GOOGLE_VISION_BARCODE_MODE_NORMAL)
-            put("ALTERNATE", GOOGLE_VISION_BARCODE_MODE_ALTERNATE)
-            put("INVERTED", GOOGLE_VISION_BARCODE_MODE_INVERTED)
-          }
-        })
-
-      init {
-        put("Type", typeConstants)
-        put("FlashMode", flashModeConstants)
-        put("AutoFocus", autoFocusConstants)
-        put("WhiteBalance", whiteBalanceConstants)
-        put("VideoQuality", videoQualityConstants)
-        put("BarCodeType", barCodeConstants)
-        put("FaceDetection", Collections.unmodifiableMap(object : HashMap<String, Any>() {
-          private val faceDetectionModeConstants: Map<String, Any>
-            private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-              init {
-                put("fast", RNFaceDetector.FAST_MODE)
-                put("accurate", RNFaceDetector.ACCURATE_MODE)
-              }
-            })
-          private val faceDetectionClassificationsConstants: Map<String, Any>
-            private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-              init {
-                put("all", RNFaceDetector.ALL_CLASSIFICATIONS)
-                put("none", RNFaceDetector.NO_CLASSIFICATIONS)
-              }
-            })
-          private val faceDetectionLandmarksConstants: Map<String, Any>
-            private get() = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-              init {
-                put("all", RNFaceDetector.ALL_LANDMARKS)
-                put("none", RNFaceDetector.NO_LANDMARKS)
-              }
-            })
-
-          init {
-            put("Mode", faceDetectionModeConstants)
-            put("Landmarks", faceDetectionLandmarksConstants)
-            put("Classifications", faceDetectionClassificationsConstants)
-          }
-        }))
-        put("GoogleVisionBarcodeDetection", Collections.unmodifiableMap(object : HashMap<String?, Any?>() {
-          init {
-            put("BarcodeType", BarcodeFormatUtils.REVERSE_FORMATS)
-            put("BarcodeMode", googleVisionBarcodeModeConstants)
-          }
-        }))
-        put("Orientation", Collections.unmodifiableMap(object : HashMap<String?, Any?>() {
-          init {
-            put("auto", Constants.ORIENTATION_AUTO)
-            put("portrait", Constants.ORIENTATION_UP)
-            put("portraitUpsideDown", Constants.ORIENTATION_DOWN)
-            put("landscapeLeft", Constants.ORIENTATION_LEFT)
-            put("landscapeRight", Constants.ORIENTATION_RIGHT)
-          }
-        }))
-      }
-    })
+    return mutableMapOf(
+      "Type" to mapOf(
+        "front" to Constants.FACING_FRONT,
+        "back" to Constants.FACING_BACK
+      ),
+      "FlashMode" to mapOf(
+        "off" to Constants.FLASH_OFF,
+        "on" to Constants.FLASH_ON,
+        "auto" to Constants.FLASH_AUTO,
+        "torch" to Constants.FLASH_TORCH
+      ),
+      "AutoFocus" to mapOf(
+        "on" to true,
+        "off" to false
+      ),
+      "WhiteBalance" to mapOf(
+        "auto" to Constants.WB_AUTO,
+        "cloudy" to Constants.WB_CLOUDY,
+        "sunny" to Constants.WB_SUNNY,
+        "shadow" to Constants.WB_SHADOW,
+        "fluorescent" to Constants.WB_FLUORESCENT,
+        "incandescent" to Constants.WB_INCANDESCENT
+      ),
+      "VideoQuality" to mapOf(
+        "2160p" to VIDEO_2160P,
+        "1080p" to VIDEO_1080P,
+        "720p" to VIDEO_720P,
+        "480p" to VIDEO_480P,
+        "4:3" to VIDEO_4x3
+      ),
+      "Orientation" to mapOf(
+        "auto" to Constants.ORIENTATION_AUTO,
+        "portrait" to Constants.ORIENTATION_UP,
+        "portraitUpsideDown" to Constants.ORIENTATION_DOWN,
+        "landscapeLeft" to Constants.ORIENTATION_LEFT,
+        "landscapeRight" to Constants.ORIENTATION_RIGHT
+      )
+    )
   }
 
   private fun useCameraView(viewTag: Int, requireOpen: Boolean, run: (view: RNCameraView?) -> Unit) {
@@ -139,7 +80,7 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
       try {
         cameraView = nativeViewHierarchyManager.resolveView(viewTag) as RNCameraView
         if (requireOpen) {
-          if (cameraView.isCameraOpened()) {
+          if (cameraView.isCameraOpened) {
             run(cameraView)
           } else {
             run(null)
@@ -164,8 +105,8 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
   }
 
   @ReactMethod
-  fun takePicture(options: ReadableMap?, viewTag: Int, promise: Promise) {
-    val cacheDirectory: File? = mScopedContext.cacheDirectory
+  fun takePicture(options: ReadableMap, viewTag: Int, promise: Promise) {
+    val cacheDirectory: File = mScopedContext.cacheDirectory!!
     useCameraView(viewTag, true) {
       if (it == null) {
         promise.reject("E_CAMERA_UNAVAILABLE", "Camera is not running")
@@ -176,8 +117,8 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
   }
 
   @ReactMethod
-  fun record(options: ReadableMap?, viewTag: Int, promise: Promise) {
-    val cacheDirectory: File? = mScopedContext.cacheDirectory
+  fun record(options: ReadableMap, viewTag: Int, promise: Promise) {
+    val cacheDirectory: File = mScopedContext.cacheDirectory!!
     useCameraView(viewTag,true) {
       if (it == null) {
         promise.reject("E_CAMERA_UNAVAILABLE", "Camera is not running")
@@ -195,7 +136,7 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
   fun stopRecording(viewTag: Int) {
     useCameraView(viewTag, true) {
       try {
-        it.stopRecording()
+        it!!.stopRecording()
       } catch (e: Throwable) {
         e.printStackTrace()
       }
@@ -206,7 +147,7 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
   fun pauseRecording(viewTag: Int) {
     useCameraView(viewTag, true) {
       try {
-        it.pauseRecording()
+        it!!.pauseRecording()
       } catch (e: Throwable) {
         e.printStackTrace()
       }
@@ -217,7 +158,7 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
   fun resumeRecording(viewTag: Int) {
     useCameraView(viewTag, true) {
       try {
-        it.resumeRecording()
+        it!!.resumeRecording()
       } catch (e: Throwable) {
         e.printStackTrace()
       }
@@ -283,13 +224,9 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
       } else {
         try {
           val result: WritableArray = Arguments.createArray()
-          val sizes: SortedSet<Size?>? = it.getAvailablePictureSizes(AspectRatio.parse(ratio))
-          if (sizes != null) {
-            for (size in sizes) {
-              if (size != null) {
-                result.pushString(size.toString())
-              }
-            }
+          val sizes: SortedSet<Size> = it.getAvailablePictureSizes(AspectRatio.parse(ratio))
+          for (size in sizes) {
+            result.pushString(size.toString())
           }
           promise.resolve(result)
         } catch (e: Exception) {
@@ -328,16 +265,12 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
       } else {
         try {
           val result: WritableArray = Arguments.createArray()
-          val ranges: ArrayList<IntArray?>? = it.supportedPreviewFpsRange
-          if (ranges != null) {
-            for (range in ranges) {
-              if (range != null) {
-                val m: WritableMap = WritableNativeMap()
-                m.putInt("MAXIMUM_FPS", range[0])
-                m.putInt("MINIMUM_FPS", range[1])
-                result.pushMap(m)
-              }
-            }
+          val ranges: ArrayList<IntArray> = it.supportedPreviewFpsRange
+          for (range in ranges) {
+            val m: WritableMap = WritableNativeMap()
+            m.putInt("MAXIMUM_FPS", range[0])
+            m.putInt("MINIMUM_FPS", range[1])
+            result.pushMap(m)
           }
           promise.resolve(result)
         } catch (e: Exception) {
@@ -349,34 +282,11 @@ class CoreModule(reactContext: ReactApplicationContext?) : ReactContextBaseJavaM
 
   companion object {
     private const val TAG = "CameraModule"
+    var instance: CoreModule? = null
     const val VIDEO_2160P = 0
     const val VIDEO_1080P = 1
     const val VIDEO_720P = 2
     const val VIDEO_480P = 3
     const val VIDEO_4x3 = 4
-    const val GOOGLE_VISION_BARCODE_MODE_NORMAL = 0
-    const val GOOGLE_VISION_BARCODE_MODE_ALTERNATE = 1
-    const val GOOGLE_VISION_BARCODE_MODE_INVERTED = 2
-    private val barCodeConstants: Map<String, Any> = Collections.unmodifiableMap(object : HashMap<String, Any>() {
-      init {
-        put("aztec", BarcodeFormat.AZTEC.toString())
-        put("ean13", BarcodeFormat.EAN_13.toString())
-        put("ean8", BarcodeFormat.EAN_8.toString())
-        put("qr", BarcodeFormat.QR_CODE.toString())
-        put("pdf417", BarcodeFormat.PDF_417.toString())
-        put("upc_e", BarcodeFormat.UPC_E.toString())
-        put("datamatrix", BarcodeFormat.DATA_MATRIX.toString())
-        put("code39", BarcodeFormat.CODE_39.toString())
-        put("code93", BarcodeFormat.CODE_93.toString())
-        put("interleaved2of5", BarcodeFormat.ITF.toString())
-        put("codabar", BarcodeFormat.CODABAR.toString())
-        put("code128", BarcodeFormat.CODE_128.toString())
-        put("maxicode", BarcodeFormat.MAXICODE.toString())
-        put("rss14", BarcodeFormat.RSS_14.toString())
-        put("rssexpanded", BarcodeFormat.RSS_EXPANDED.toString())
-        put("upc_a", BarcodeFormat.UPC_A.toString())
-        put("upc_ean", BarcodeFormat.UPC_EAN_EXTENSION.toString())
-      }
-    })
   }
 }

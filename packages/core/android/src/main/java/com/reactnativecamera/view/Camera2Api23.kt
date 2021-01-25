@@ -22,7 +22,7 @@ import android.hardware.camera2.params.StreamConfigurationMap
 import android.os.Handler
 
 @TargetApi(23)
-internal class Camera2Api23(callback: Callback?, preview: PreviewImpl?, context: Context?, bgHandler: Handler?) : Camera2(callback, preview, context!!, bgHandler) {
+internal class Camera2Api23(callback: Callback, preview: PreviewImpl, context: Context, bgHandler: Handler) : Camera2(callback, preview, context!!, bgHandler) {
   override fun collectPictureSizes(sizes: SizeMap?, map: StreamConfigurationMap) {
     // Try to get hi-res output sizes
     val outputSizes = map.getHighResolutionOutputSizes(ImageFormat.JPEG)

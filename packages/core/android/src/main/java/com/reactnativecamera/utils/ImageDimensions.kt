@@ -1,7 +1,7 @@
 package com.reactnativecamera.utils
 
 class ImageDimensions @JvmOverloads constructor(private val mWidth: Int, private val mHeight: Int, val rotation: Int = 0, val facing: Int = -1) {
-  val isLandscape: Boolean
+  private val isLandscape: Boolean
     get() = rotation % 180 == 90
   val width: Int
     get() = if (isLandscape) {
@@ -14,8 +14,7 @@ class ImageDimensions @JvmOverloads constructor(private val mWidth: Int, private
 
   override fun equals(obj: Any?): Boolean {
     return if (obj is ImageDimensions) {
-      val otherDimensions = obj
-      otherDimensions.mWidth == mWidth && otherDimensions.mHeight == mHeight && otherDimensions.facing == facing && otherDimensions.rotation == rotation
+      obj.mWidth == mWidth && obj.mHeight == mHeight && obj.facing == facing && obj.rotation == rotation
     } else {
       super.equals(obj)
     }

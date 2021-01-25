@@ -89,7 +89,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
     // Handle android:adjustViewBounds
     if (mAdjustViewBounds) {
       if (!isCameraOpened) {
-        mCallbacks!!.reserveRequestLayoutOnOpen()
+        mCallbacks?.reserveRequestLayoutOnOpen()
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         return
       }
@@ -188,9 +188,9 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
         stop()
       }
       mImpl = if (Build.VERSION.SDK_INT < 23) {
-        Camera2(mCallbacks, mImpl!!.mPreview, mContext, mBgHandler)
+        Camera2(mCallbacks!!, mImpl!!.mPreview, mContext, mBgHandler)
       } else {
-        Camera2Api23(mCallbacks, mImpl!!.mPreview, mContext, mBgHandler)
+        Camera2Api23(mCallbacks!!, mImpl!!.mPreview, mContext, mBgHandler)
       }
       onRestoreInstanceState(state!!)
     } else {
@@ -200,7 +200,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
       if (wasOpened) {
         stop()
       }
-      mImpl = Camera1(mCallbacks, mImpl!!.mPreview, mBgHandler)
+      mImpl = Camera1(mCallbacks!!, mImpl!!.mPreview, mBgHandler)
     }
     if (wasOpened) {
       start()
@@ -333,7 +333,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
    *
    * @param ratio The [AspectRatio] to be set.
    */
-  fun setAspectRatio(ratio: AspectRatio) {
+  open fun setAspectRatio(ratio: AspectRatio) {
     if (mImpl!!.setAspectRatio(ratio)) {
       requestLayout()
     }
@@ -352,7 +352,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
    *
    * @param ratio [AspectRatio] for which the available image sizes will be returned.
    */
-  fun getAvailablePictureSizes(ratio: AspectRatio): SortedSet<Size?>? {
+  fun getAvailablePictureSizes(ratio: AspectRatio): SortedSet<Size> {
     return mImpl!!.getAvailablePictureSizes(ratio)
   }
   /**
@@ -386,7 +386,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
     set(autoFocus) {
       mImpl!!.autoFocus = autoFocus
     }
-  val supportedPreviewFpsRange: ArrayList<IntArray?>?
+  val supportedPreviewFpsRange: ArrayList<IntArray>
     get() = mImpl!!.supportedPreviewFpsRange
   /**
    * Gets the current flash mode.
@@ -463,7 +463,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
    * Take a picture. The result will be returned to
    * [Callback.onPictureTaken].
    */
-  fun takePicture(options: ReadableMap?) {
+  fun takePicture(options: ReadableMap) {
     mImpl!!.takePicture(options)
   }
 
@@ -477,8 +477,8 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
    *
    * fires [Callback.onRecordingStart] and [Callback.onRecordingEnd].
    */
-  fun record(path: String?, maxDuration: Int, maxFileSize: Int,
-             recordAudio: Boolean, profile: CamcorderProfile?, orientation: Int, fps: Int): Boolean {
+  fun record(path: String, maxDuration: Int, maxFileSize: Int,
+             recordAudio: Boolean, profile: CamcorderProfile, orientation: Int, fps: Int): Boolean {
     return mImpl!!.record(path, maxDuration, maxFileSize, recordAudio, profile, orientation, fps)
   }
 
@@ -502,7 +502,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
     mImpl!!.pausePreview()
   }
 
-  fun setPreviewTexture(surfaceTexture: SurfaceTexture?) {
+  fun setPreviewTexture(surfaceTexture: SurfaceTexture) {
     mImpl!!.setPreviewTexture(surfaceTexture)
   }
 
@@ -536,13 +536,13 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
       }
     }
 
-    override fun onPictureTaken(data: ByteArray?, deviceOrientation: Int) {
+    override fun onPictureTaken(data: ByteArray, deviceOrientation: Int) {
       for (callback in mCallbacks) {
         callback.onPictureTaken(this@CameraView, data, deviceOrientation)
       }
     }
 
-    override fun onRecordingStart(path: String?, videoOrientation: Int, deviceOrientation: Int) {
+    override fun onRecordingStart(path: String, videoOrientation: Int, deviceOrientation: Int) {
       for (callback in mCallbacks) {
         callback.onRecordingStart(this@CameraView, path, videoOrientation, deviceOrientation)
       }
@@ -560,7 +560,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
       }
     }
 
-    override fun onFramePreview(data: ByteArray?, width: Int, height: Int, orientation: Int) {
+    override fun onFramePreview(data: ByteArray, width: Int, height: Int, orientation: Int) {
       for (callback in mCallbacks) {
         callback.onFramePreview(this@CameraView, data, width, height, orientation)
       }
@@ -652,14 +652,14 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
      *
      * @param cameraView The associated [com.google.android.cameraview.CameraView].
      */
-    fun onCameraOpened(cameraView: CameraView?) {}
+    open fun onCameraOpened(cameraView: CameraView) {}
 
     /**
      * Called when camera is closed.
      *
      * @param cameraView The associated [com.google.android.cameraview.CameraView].
      */
-    fun onCameraClosed(cameraView: CameraView?) {}
+    fun onCameraClosed(cameraView: CameraView) {}
 
     /**
      * Called when a picture is taken.
@@ -667,7 +667,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
      * @param cameraView The associated [com.google.android.cameraview.CameraView].
      * @param data       JPEG data.
      */
-    fun onPictureTaken(cameraView: CameraView?, data: ByteArray?, deviceOrientation: Int) {}
+    open fun onPictureTaken(cameraView: CameraView, data: ByteArray, deviceOrientation: Int) {}
 
     /**
      * Called when a video recording starts
@@ -675,7 +675,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
      * @param cameraView The associated [com.google.android.cameraview.CameraView].
      * @param path       Path to recoredd video file.
      */
-    fun onRecordingStart(cameraView: CameraView?, path: String?, videoOrientation: Int, deviceOrientation: Int) {}
+    open fun onRecordingStart(cameraView: CameraView, path: String, videoOrientation: Int, deviceOrientation: Int) {}
 
     /**
      * Called when a video recording ends, but before video is saved/processed.
@@ -683,7 +683,7 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
      * @param cameraView The associated [com.google.android.cameraview.CameraView].
      * @param path       Path to recoredd video file.
      */
-    fun onRecordingEnd(cameraView: CameraView?) {}
+    open fun onRecordingEnd(cameraView: CameraView) {}
 
     /**
      * Called when a video is recorded.
@@ -691,9 +691,9 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
      * @param cameraView The associated [com.google.android.cameraview.CameraView].
      * @param path       Path to recoredd video file.
      */
-    fun onVideoRecorded(cameraView: CameraView?, path: String?, videoOrientation: Int, deviceOrientation: Int) {}
-    fun onFramePreview(cameraView: CameraView?, data: ByteArray?, width: Int, height: Int, orientation: Int) {}
-    fun onMountError(cameraView: CameraView?) {}
+    open fun onVideoRecorded(cameraView: CameraView, path: String?, videoOrientation: Int, deviceOrientation: Int) {}
+    open fun onFramePreview(cameraView: CameraView, data: ByteArray, width: Int, height: Int, orientation: Int) {}
+    open fun onMountError(cameraView: CameraView) {}
   }
 
   companion object {
@@ -736,13 +736,14 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
 
       // Internal setup
       val preview = createPreviewImpl(context)
-      mCallbacks = CallbackBridge()
+      val callbacks = CallbackBridge()
+      mCallbacks = callbacks
       mImpl = if (fallbackToOldApi || Build.VERSION.SDK_INT < 21 || Camera2.isLegacy(context!!)) {
-        Camera1(mCallbacks, preview, mBgHandler)
+        Camera1(callbacks, preview, mBgHandler)
       } else if (Build.VERSION.SDK_INT < 23) {
-        Camera2(mCallbacks, preview, context, mBgHandler)
+        Camera2(callbacks, preview, context, mBgHandler)
       } else {
-        Camera2Api23(mCallbacks, preview, context, mBgHandler)
+        Camera2Api23(callbacks, preview, context, mBgHandler)
       }
 
       // Display orientation detector

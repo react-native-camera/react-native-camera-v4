@@ -42,22 +42,22 @@ abstract class CameraViewImpl(
   abstract val isCameraOpened: Boolean
   abstract var facing: Int
   abstract var cameraId: String?
-  abstract val supportedAspectRatios: Set<AspectRatio?>?
-  abstract val cameraIds: List<Properties?>?
-  abstract fun getAvailablePictureSizes(ratio: AspectRatio?): SortedSet<Size?>?
+  abstract val supportedAspectRatios: Set<AspectRatio>
+  abstract val cameraIds: List<Properties>
+  abstract fun getAvailablePictureSizes(ratio: AspectRatio): SortedSet<Size>
   abstract var pictureSize: Size?
 
   /**
    * @return `true` if the aspect ratio was changed.
    */
-  abstract fun setAspectRatio(ratio: AspectRatio?): Boolean
+  abstract fun setAspectRatio(ratio: AspectRatio): Boolean
   abstract val aspectRatio: AspectRatio?
   abstract var autoFocus: Boolean
   abstract var flash: Int
   abstract var exposureCompensation: Float
-  abstract fun takePicture(options: ReadableMap?)
-  abstract fun record(path: String?, maxDuration: Int, maxFileSize: Int,
-                      recordAudio: Boolean, profile: CamcorderProfile?, orientation: Int, fps: Int): Boolean
+  abstract fun takePicture(options: ReadableMap)
+  abstract fun record(path: String, maxDuration: Int, maxFileSize: Int,
+                      recordAudio: Boolean, profile: CamcorderProfile, orientation: Int, fps: Int): Boolean
 
   abstract fun stopRecording()
   abstract fun pauseRecording()
@@ -68,24 +68,24 @@ abstract class CameraViewImpl(
   abstract fun setFocusArea(x: Float, y: Float)
   abstract var focusDepth: Float
   abstract var zoom: Float
-  abstract val supportedPreviewFpsRange: ArrayList<IntArray?>?
+  abstract val supportedPreviewFpsRange: ArrayList<IntArray>
   abstract var whiteBalance: Int
   abstract var playSoundOnCapture: Boolean
   abstract var playSoundOnRecord: Boolean
   abstract var scanning: Boolean
   abstract fun resumePreview()
   abstract fun pausePreview()
-  abstract fun setPreviewTexture(surfaceTexture: SurfaceTexture?)
-  abstract val previewSize: Size?
+  abstract fun setPreviewTexture(surfaceTexture: SurfaceTexture)
+  abstract val previewSize: Size
 
   interface Callback {
     fun onCameraOpened()
     fun onCameraClosed()
-    fun onPictureTaken(data: ByteArray?, deviceOrientation: Int)
+    fun onPictureTaken(data: ByteArray, deviceOrientation: Int)
     fun onVideoRecorded(path: String?, videoOrientation: Int, deviceOrientation: Int)
-    fun onRecordingStart(path: String?, videoOrientation: Int, deviceOrientation: Int)
+    fun onRecordingStart(path: String, videoOrientation: Int, deviceOrientation: Int)
     fun onRecordingEnd()
-    fun onFramePreview(data: ByteArray?, width: Int, height: Int, orientation: Int)
+    fun onFramePreview(data: ByteArray, width: Int, height: Int, orientation: Int)
     fun onMountError()
   }
 }
