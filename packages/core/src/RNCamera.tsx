@@ -26,8 +26,8 @@ import {
   PictureSavedEvent,
   RecordingOptions,
   VideoRecordedEvent,
+  Point,
 } from './types'
-import { Point } from './types/geometry'
 
 interface State {
   isAuthorized: boolean
@@ -194,7 +194,7 @@ export default class Camera extends Component<CameraProps, State> {
     )
   }
 
-  getStatus = (): CameraPermissionStatus => {
+  getStatus(): CameraPermissionStatus {
     const { isAuthorized, isAuthorizationChecked } = this.state
     if (isAuthorizationChecked === false) {
       return CameraPermissionStatus.PENDING_AUTHORIZATION
