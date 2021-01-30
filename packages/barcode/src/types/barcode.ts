@@ -1,0 +1,20 @@
+export type AndroidBarCodeTypes =
+  | 'aztec'
+  | 'ean13'
+  | 'ean8'
+  | 'qr'
+  | 'pdf417'
+  | 'upc_e'
+  | 'datamatrix'
+  | 'code39'
+  | 'code93'
+  | 'interleaved2of5'
+  | 'codabar'
+  | 'code128'
+  | 'maxicode'
+  | 'rss14'
+  | 'rssexpanded'
+  | 'upc_a'
+  | 'upc_ean'
+
+export type BarCodeTypes = AndroidBarCodeTypes

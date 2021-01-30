@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react'
+import { useCallback, useContext } from 'react'
 
 import { PluginRegistry, PluginRegistryContext } from '../PluginRegistry'
 
@@ -14,13 +14,13 @@ const useCameraPluginRegistry = (): PluginRegistry => {
   return registry
 }
 
-export const useRegisterCameraPlugin = (plugin: string): void => {
+export const useRegisterCameraPlugin = (plugin: string): (() => void) => {
   const registry = useCameraPluginRegistry()
 
-  useEffect(() => {
+  return useCallback(() => {
     registry.addPlugin(plugin)
     return () => registry.removePlugin(plugin)
-  })
+  }, [plugin, registry])
 }
 
 export const useCameraViewId = (): number => {

@@ -2,10 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "baseUrl": ".",
-    "paths": {
-      "@react-native-camera/core": ["./src/index"]
-    }
+    "rootDir": "src/",
+    "outDir": "lib/"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
 }

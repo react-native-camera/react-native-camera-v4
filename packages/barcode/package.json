@@ -2,9 +2,7 @@
   "name": "@react-native-camera/barcode",
   "version": "0.1.0",
   "description": "Barcode reader plugin",
-  "main": "lib/commonjs/index",
-  "module": "lib/module/index",
-  "types": "lib/typescript/src/index.d.ts",
+  "main": "lib/index",
   "react-native": "src/index",
   "source": "src/index",
   "files": [
@@ -22,7 +20,6 @@
     "!**/__mocks__"
   ],
   "scripts": {
-    "prepare": "bob build",
     "example": "yarn --cwd example",
     "pods": "cd example && pod-install --quiet"
   },

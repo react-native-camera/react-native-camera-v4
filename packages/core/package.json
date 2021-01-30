@@ -2,9 +2,7 @@
   "name": "@react-native-camera/core",
   "version": "0.1.0",
   "description": "Camera component for React Native",
-  "main": "lib/commonjs/index",
-  "module": "lib/module/index",
-  "types": "lib/typescript/src/index.d.ts",
+  "main": "lib/index",
   "react-native": "src/index",
   "source": "src/index",
   "files": [
@@ -14,15 +12,10 @@
     "ios",
     "cpp",
     "react-native-camera-core.podspec",
-    "!lib/typescript/example",
     "!android/build",
-    "!ios/build",
-    "!**/__tests__",
-    "!**/__fixtures__",
-    "!**/__mocks__"
+    "!ios/build"
   ],
   "scripts": {
-    "prepare": "bob build",
     "example": "yarn --cwd example",
     "pods": "cd example && pod-install --quiet"
   },

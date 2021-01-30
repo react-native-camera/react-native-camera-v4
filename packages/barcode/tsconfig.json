@@ -1,11 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "rootDir": "src/",
+    "outDir": "lib/",
     "composite": true,
-    "baseUrl": ".",
-    "paths": {
-      "@react-native-camera/barcode": ["./src/index"]
-    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
