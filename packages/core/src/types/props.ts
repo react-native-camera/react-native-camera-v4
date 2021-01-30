@@ -1,8 +1,9 @@
 import { Rationale, ViewProps } from 'react-native'
+
 import {
   CameraPermissionStatus,
   RecordAudioPermissionStatus,
-} from 'src/permissions'
+} from '../permissions'
 
 import { WhiteBalanceSettings } from './camera'
 import {

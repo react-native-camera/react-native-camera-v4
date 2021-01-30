@@ -4,9 +4,10 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "@react-native-camera/core": ["./src/index"]
+      "@react-native-camera/barcode": ["./src/index"]
     }
   },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     { "path": "../core" }
   ]

@@ -16,7 +16,6 @@ import {
 } from './permissions'
 import {
   AndroidCameraManager,
-  CameraProps,
   FpsRange,
   IOSCameraManager,
   OrientationNumber,
@@ -28,6 +27,7 @@ import {
   VideoRecordedEvent,
   Point,
 } from './types'
+import { RNCameraProps } from './types/internal'
 
 interface State {
   isAuthorized: boolean
@@ -35,11 +35,12 @@ interface State {
   recordAudioPermissionStatus: RecordAudioPermissionStatus
 }
 
-export default class Camera extends Component<CameraProps, State> {
+export default class Camera extends Component<RNCameraProps, State> {
   static defaultProps: Omit<
-    CameraProps,
+    RNCameraProps,
     'androidCameraPermissionOptions' | 'androidRecordAudioPermissionOptions'
   > = {
+    plugins: [],
     zoom: 0,
     useNativeZoom: false,
     maxZoom: 0,
@@ -58,12 +59,11 @@ export default class Camera extends Component<CameraProps, State> {
     pictureSize: 'None',
     videoStabilizationMode: 'off',
     mirrorVideo: false,
+    onCameraViewId: () => null,
   }
 
-  constructor(props: CameraProps) {
+  constructor(props: RNCameraProps) {
     super(props)
-    this.lastEvents = {}
-    this.lastEventsTimes = {}
     this.isMounted = true
     this.state = {
       isAuthorized: false,
@@ -316,8 +316,6 @@ export default class Camera extends Component<CameraProps, State> {
 
   private cameraRef: number | undefined = undefined
   private cameraHandle: number | undefined = undefined
-  private lastEvents: { [key: string]: string }
-  private lastEventsTimes: { [key: string]: Date }
   private isMounted: boolean
 
   private convertNativeProps({
@@ -327,8 +325,8 @@ export default class Camera extends Component<CameraProps, State> {
     whiteBalance,
     videoStabilizationMode,
     ...props
-  }: CameraProps) {
-    const parsedProps = { ...props } as ParsedCameraProps
+  }: RNCameraProps) {
+    const parsedProps = ({ ...props } as unknown) as ParsedCameraProps
 
     if (type) {
       parsedProps.type = CameraManager.Type[type]
@@ -366,6 +364,9 @@ export default class Camera extends Component<CameraProps, State> {
     if (ref) {
       this.cameraRef = ref
       this.cameraHandle = findNodeHandle(ref) ?? undefined
+      if (this.cameraHandle) {
+        this.props.onCameraViewId(this.cameraHandle)
+      }
     } else {
       this.cameraRef = undefined
       this.cameraHandle = undefined

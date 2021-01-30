@@ -1,3 +1,4 @@
-export { default as Camera } from './RNCamera'
+export { Camera } from './Camera'
 export { CameraManager } from './native'
 export * from './types'
+export * from './hooks'
