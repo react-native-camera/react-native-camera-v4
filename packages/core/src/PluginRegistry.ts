@@ -1,11 +1,20 @@
 import { createContext } from 'react'
-import { EventEmitter } from 'react-native'
 
-export class PluginRegistry extends EventEmitter {
-  static PLUGINS_CHANGED_EVENT_NAME = 'pluginsChanged'
-
+export type PluginsChangedCallback = (plugins: string[]) => void
+export class PluginRegistry {
   plugins: string[] = []
   cameraViewId: number | undefined
+
+  constructor(onPluginsChanged: PluginsChangedCallback) {
+    this.callback = onPluginsChanged
+  }
+
+  enable(): void {
+    this.enabled = true
+    if (this.plugins.length) {
+      this.emitPlugins()
+    }
+  }
 
   addPlugin(plugin: string): void {
     if (!this.plugins.includes(plugin)) {
@@ -21,8 +30,13 @@ export class PluginRegistry extends EventEmitter {
     }
   }
 
+  private callback: PluginsChangedCallback
+  private enabled = false
+
   private emitPlugins() {
-    this.emit(PluginRegistry.PLUGINS_CHANGED_EVENT_NAME, this.plugins)
+    if (this.enabled) {
+      this.callback(this.plugins)
+    }
   }
 }
 

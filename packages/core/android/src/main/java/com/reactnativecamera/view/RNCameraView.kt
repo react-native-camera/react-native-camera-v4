@@ -30,36 +30,20 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 class RNCameraView(themedReactContext: ThemedReactContext) : CameraView(themedReactContext, true),
   LifecycleEventListener, PluginDelegate, PictureSavedDelegate {
-  private val mThemedReactContext: ThemedReactContext
+  private val mThemedReactContext: ThemedReactContext = themedReactContext
   private val mPictureTakenPromises: Queue<Promise> = ConcurrentLinkedQueue<Promise>()
-  private val mPictureTakenOptions: MutableMap<Promise, ReadableMap> = ConcurrentHashMap<Promise, ReadableMap>()
-  private val mPictureTakenDirectories: MutableMap<Promise, File> = ConcurrentHashMap<Promise, File>()
+  private val mPictureTakenOptions: MutableMap<Promise, ReadableMap> = ConcurrentHashMap()
+  private val mPictureTakenDirectories: MutableMap<Promise, File> = ConcurrentHashMap()
   private var mVideoRecordedPromise: Promise? = null
-  private var mBarCodeTypes: List<String>? = null
-  private var mDetectedImageInEvent = false
   private var mScaleGestureDetector: ScaleGestureDetector? = null
   private var mGestureDetector: GestureDetector? = null
   private var mIsPaused = false
   private var mIsNew = true
-  private var invertImageData = false
   private var mIsRecording = false
   private var mIsRecordingInterrupted = false
   private var mUseNativeZoom = false
 
   var plugins = mutableMapOf<String, Plugin>()
-
-  // Concurrency lock for scanners to avoid flooding the runtime
-  @Volatile
-  var barCodeScannerTaskLock = false
-
-  @Volatile
-  var faceDetectorTaskLock = false
-
-  @Volatile
-  var googleBarcodeDetectorTaskLock = false
-
-  @Volatile
-  var textRecognizerTaskLock = false
 
   private var mShouldDetectTouches = false
   private var mPaddingX = 0
@@ -292,7 +276,6 @@ class RNCameraView(themedReactContext: ThemedReactContext) : CameraView(themedRe
   }
 
   init {
-    mThemedReactContext = themedReactContext
     themedReactContext.addLifecycleEventListener(this)
     addCallback(object : Callback() {
       override fun onCameraOpened(cameraView: CameraView) {
@@ -352,9 +335,9 @@ class RNCameraView(themedReactContext: ThemedReactContext) : CameraView(themedRe
         }
       }
 
-      override fun onFramePreview(cameraView: CameraView, data: ByteArray, width: Int, height: Int, rotation: Int) {
+      override fun onFramePreview(cameraView: CameraView, data: ByteArray, width: Int, height: Int, orientation: Int) {
         plugins.values.forEach {
-          it.onFramePreview(cameraView, data, width, height, rotation)
+          it.onFramePreview(cameraView, data, width, height, orientation)
         }
       }
     })

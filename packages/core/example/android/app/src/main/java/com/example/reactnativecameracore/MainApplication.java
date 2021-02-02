@@ -10,7 +10,7 @@ import com.facebook.react.ReactInstanceManager;
 import com.facebook.soloader.SoLoader;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import com.reactnativecameracore.CorePackage;
+import com.reactnativecamera.CorePackage;
 
 public class MainApplication extends Application implements ReactApplication {
 

@@ -792,22 +792,21 @@ internal class Camera1(callback: Callback, preview: PreviewImpl, bgHandler: Hand
       return false
     }
 
-    val camera = mCamera ?: return false
-
     try {
-      mCamera = Camera.open(mCameraId)
+      val camera = Camera.open(mCameraId)
+      mCamera = camera
       val cameraParameters = camera.parameters
       mCameraParameters = cameraParameters
 
       // Supported preview sizes
       mPreviewSizes.clear()
-      for (size: Camera.Size in cameraParameters.getSupportedPreviewSizes()) {
+      for (size: Camera.Size in cameraParameters.supportedPreviewSizes) {
         mPreviewSizes.add(Size(size.width, size.height))
       }
 
       // Supported picture sizes;
       mPictureSizes.clear()
-      for (size: Camera.Size in cameraParameters.getSupportedPictureSizes()) {
+      for (size: Camera.Size in cameraParameters.supportedPictureSizes) {
         mPictureSizes.add(Size(size.width, size.height))
       }
 

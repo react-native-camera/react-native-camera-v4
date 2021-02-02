@@ -64,13 +64,22 @@ export default class Camera extends Component<RNCameraProps, State> {
 
   constructor(props: RNCameraProps) {
     super(props)
-    this.isMounted = true
+    this.mounted = true
     this.state = {
       isAuthorized: false,
       isAuthorizationChecked: false,
       recordAudioPermissionStatus:
         RecordAudioPermissionStatus.PENDING_AUTHORIZATION,
     }
+
+    this.setReference = this.setReference.bind(this)
+    this.onMountError = this.onMountError.bind(this)
+    this.onCameraReady = this.onCameraReady.bind(this)
+    this.onAudioInterrupted = this.onAudioInterrupted.bind(this)
+    this.onAudioConnected = this.onAudioConnected.bind(this)
+    this.onTouch = this.onTouch.bind(this)
+    this.onPictureSaved = this.onPictureSaved.bind(this)
+    this.onSubjectAreaChanged = this.onSubjectAreaChanged.bind(this)
   }
 
   render(): ReactElement | null {
@@ -103,7 +112,7 @@ export default class Camera extends Component<RNCameraProps, State> {
       hasCameraPermissions,
       recordAudioPermissionStatus,
     } = await this.arePermissionsGranted()
-    if (this.isMounted === false) {
+    if (this.mounted === false) {
       return
     }
 
@@ -118,7 +127,7 @@ export default class Camera extends Component<RNCameraProps, State> {
   }
 
   componentWillUnmount(): void {
-    this.isMounted = false
+    this.mounted = false
   }
 
   async takePictureAsync(options?: PictureOptions): Promise<PictureSavedEvent> {
@@ -303,7 +312,7 @@ export default class Camera extends Component<RNCameraProps, State> {
       hasCameraPermissions,
       recordAudioPermissionStatus,
     } = await this.arePermissionsGranted()
-    if (this.isMounted === false) {
+    if (this.mounted === false) {
       return
     }
 
@@ -316,7 +325,7 @@ export default class Camera extends Component<RNCameraProps, State> {
 
   private cameraRef: number | undefined = undefined
   private cameraHandle: number | undefined = undefined
-  private isMounted: boolean
+  private mounted: boolean
 
   private convertNativeProps({
     type,

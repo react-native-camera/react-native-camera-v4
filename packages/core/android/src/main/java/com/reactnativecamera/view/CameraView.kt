@@ -30,7 +30,12 @@ import com.facebook.react.bridge.ReadableMap
 import com.reactnativecamera.Constants
 import java.util.*
 
-open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int, fallbackToOldApi: Boolean) : FrameLayout(context!!, attrs, defStyleAttr) {
+open class CameraView(
+  context: Context,
+  attrs: AttributeSet?,
+  defStyleAttr: Int,
+  fallbackToOldApi: Boolean
+) : FrameLayout(context, attrs, defStyleAttr) {
   /** Direction the camera faces relative to device screen.  */
   @IntDef(FACING_BACK, FACING_FRONT)
   @kotlin.annotation.Retention(AnnotationRetention.SOURCE)
@@ -49,8 +54,8 @@ open class CameraView(context: Context?, attrs: AttributeSet?, defStyleAttr: Int
   protected var mBgThread: HandlerThread?
   protected var mBgHandler: Handler
 
-  constructor(context: Context?, fallbackToOldApi: Boolean) : this(context, null, fallbackToOldApi) {}
-  constructor(context: Context?, attrs: AttributeSet?, fallbackToOldApi: Boolean) : this(context, attrs, 0, fallbackToOldApi) {}
+  constructor(context: Context, fallbackToOldApi: Boolean) : this(context, null, fallbackToOldApi) {}
+  constructor(context: Context, attrs: AttributeSet?, fallbackToOldApi: Boolean) : this(context, attrs, 0, fallbackToOldApi) {}
 
   fun cleanup() {
     if (mBgThread != null) {

@@ -13,7 +13,7 @@ import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.uimanager.UIManagerModule
-import com.google.zxing.Result
+import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.reactnativecamera.Constants
 import com.reactnativecamera.CoreModule
 import com.reactnativecamera.events.*

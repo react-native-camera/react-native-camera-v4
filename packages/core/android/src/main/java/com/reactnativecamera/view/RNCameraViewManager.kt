@@ -44,7 +44,7 @@ class RNCameraViewManager : ViewGroupManager<RNCameraView>() {
     return RNCameraView(themedReactContext)
   }
 
-  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any>? {
+  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
     val builder = MapBuilder.builder<String, Any>()
     for (event in Events.values()) {
       builder.put(event.toString(), MapBuilder.of("registrationName", event.toString()))
