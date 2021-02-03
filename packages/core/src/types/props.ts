@@ -18,7 +18,7 @@ import { NativeCameraManagerConstants } from './native'
 
 export interface CameraProps extends ViewProps {
   androidCameraPermissionOptions: Rationale
-  androidRecordAudioPermissionOptions: Rationale
+  androidRecordAudioPermissionOptions?: Rationale
   zoom?: number
   useNativeZoom?: boolean
   maxZoom?: number

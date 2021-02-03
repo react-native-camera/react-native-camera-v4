@@ -1,19 +1,25 @@
 import { createContext } from 'react'
 
 export type PluginsChangedCallback = (plugins: string[]) => void
+export type CameraIdChangedCallback = (cameraId: number | undefined) => void
 export class PluginRegistry {
   plugins: string[] = []
-  cameraViewId: number | undefined
 
   constructor(onPluginsChanged: PluginsChangedCallback) {
     this.callback = onPluginsChanged
   }
 
-  enable(): void {
-    this.enabled = true
-    if (this.plugins.length) {
-      this.emitPlugins()
+  setCameraId(cameraViewId: number | undefined): void {
+    this.cameraViewId = cameraViewId
+
+    if (!this.enabled) {
+      this.enabled = true
+      if (this.plugins.length) {
+        this.emitPlugins()
+      }
     }
+
+    this.cameraViewIdCallback?.(this.cameraViewId)
   }
 
   addPlugin(plugin: string): void {
@@ -30,7 +36,18 @@ export class PluginRegistry {
     }
   }
 
+  subscribeToCameraViewId(callback: CameraIdChangedCallback): () => void {
+    this.cameraViewIdCallback = callback
+    callback(this.cameraViewId)
+
+    return () => {
+      this.cameraViewIdCallback = undefined
+    }
+  }
+
+  private cameraViewIdCallback: CameraIdChangedCallback | undefined
   private callback: PluginsChangedCallback
+  private cameraViewId: number | undefined
   private enabled = false
 
   private emitPlugins() {

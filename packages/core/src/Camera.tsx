@@ -20,7 +20,7 @@ export const Camera: FunctionComponent<CameraProps> = ({
 
   useEffect(() => {
     if (cameraViewId) {
-      pluginRegistry.enable()
+      pluginRegistry.setCameraId(cameraViewId)
     }
   }, [cameraViewId, pluginRegistry])
 

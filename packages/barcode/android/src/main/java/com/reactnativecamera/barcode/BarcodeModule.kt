@@ -26,15 +26,26 @@ class BarcodeModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     var rectOfInterest: RectOfInterest? = null
 
     if (rawRectOfInterestOption != null) {
-      val x = rawRectOfInterestOption.getDouble("x").toFloat()
-      val y = rawRectOfInterestOption.getDouble("y").toFloat()
-      val width = rawRectOfInterestOption.getDouble("width").toFloat()
-      val height = rawRectOfInterestOption.getDouble("height").toFloat()
+      val x = rawRectOfInterestOption.getDouble("x").toInt()
+      val y = rawRectOfInterestOption.getDouble("y").toInt()
+      val width = rawRectOfInterestOption.getDouble("width").toInt()
+      val height = rawRectOfInterestOption.getDouble("height").toInt()
       rectOfInterest = RectOfInterest(x, y, width, height)
     }
 
-    manager.setOptions(viewId, BarcodeOptions(barcodeTypes, rectOfInterest))
+    var disabled = false
+
+    try {
+      disabled = options.getBoolean("disabled")
+    } catch (e: Throwable) {}
+
+    manager.setOptions(viewId, BarcodeOptions(barcodeTypes, rectOfInterest, disabled))
   }
 
-  val manager = BarcodePluginManager()
+  @ReactMethod
+  fun resume(viewId: Int) {
+    manager.resume(viewId)
+  }
+
+  val manager = BarcodePluginManager(reactContext)
 }

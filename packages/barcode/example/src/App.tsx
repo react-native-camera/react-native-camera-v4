@@ -1,32 +1,46 @@
-import * as React from 'react';
+import * as React from 'react'
+import { Alert, StyleSheet, ViewStyle } from 'react-native'
 
-import { StyleSheet, View, Text } from 'react-native';
-import Barcode from '@react-native-camera/barcode';
+import { Camera } from '@react-native-camera/core'
 
+import { BarcodePlugin, BarCodeType } from '../../src'
 
-export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+const BARCODE_TYPES: BarCodeType[] = ['qr']
 
-  React.useEffect(() => {
-    Barcode.multiply(3, 7).then(setResult);
-  }, []);
-
+const App: React.FunctionComponent = () => {
   return (
-    <View style={styles.container}>
-      <Text>Result: {result}</Text>
-    </View>
-  );
+    <Camera
+      style={styles.camera}
+      androidCameraPermissionOptions={{
+        title: 'Camera permissions',
+        message: 'Grant permissions to use Camera',
+        buttonPositive: 'Grant',
+      }}
+      captureAudio={false}
+    >
+      <BarcodePlugin
+        barcodeTypes={BARCODE_TYPES}
+        onBarCodeRead={React.useCallback((result, resume) => {
+          Alert.alert(
+            result.type,
+            result.data,
+            [{ text: 'Continue', onPress: resume }],
+            {
+              onDismiss: resume,
+            }
+          )
+        }, [])}
+      />
+    </Camera>
+  )
 }
 
-const styles = StyleSheet.create({
-  container: {
+export default App
+
+const styles = StyleSheet.create<{
+  camera: ViewStyle
+}>({
+  camera: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  box: {
-    width: 60,
-    height: 60,
-    marginVertical: 20,
-  },
-});
+})

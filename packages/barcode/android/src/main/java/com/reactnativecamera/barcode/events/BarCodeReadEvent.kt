@@ -6,37 +6,20 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.uimanager.events.Event
 import com.facebook.react.uimanager.events.RCTEventEmitter
+import com.google.zxing.BarcodeFormat
 import com.google.zxing.Result
+import com.reactnativecamera.barcode.Barcodes
 import com.reactnativecamera.view.RNCameraViewManager
 import java.util.*
 
-class BarCodeReadEvent private constructor(
+class BarCodeReadEvent constructor(
   private var mBarCode: Result,
   private var mWidth: Int,
   private var mHeight: Int
-) : Event<BarCodeReadEvent>() {
+) {
+  val type = Barcodes.inverse(mBarCode.barcodeFormat)
 
-  /**
-   * We want every distinct barcode to be reported to the JS listener.
-   * If we return some static value as a coalescing key there may be two barcode events
-   * containing two different barcodes waiting to be transmitted to JS
-   * that would get coalesced (because both of them would have the same coalescing key).
-   * So let's differentiate them with a hash of the contents (mod short's max value).
-   */
-  override fun getCoalescingKey(): Short {
-    val hashCode = mBarCode.text.hashCode() % Short.MAX_VALUE
-    return hashCode.toShort()
-  }
-
-  override fun getEventName(): String {
-    return RNCameraViewManager.Events.EVENT_ON_BAR_CODE_READ.toString()
-  }
-
-  override fun dispatch(rctEventEmitter: RCTEventEmitter) {
-    rctEventEmitter.receiveEvent(viewTag, eventName, serializeEventData())
-  }
-
-  private fun serializeEventData(): WritableMap {
+  fun serializeEventData(viewTag: Int): WritableMap {
     val event = Arguments.createMap()
     val eventOrigin = Arguments.createMap()
     event.putInt("target", viewTag)
@@ -50,6 +33,9 @@ class BarCodeReadEvent private constructor(
       event.putString("rawData", formatter.toString())
       formatter.close()
     }
+
+
+    event.putInt("viewId", viewTag)
     event.putString("type", mBarCode.barcodeFormat.toString())
     val resultPoints = Arguments.createArray()
     val points = mBarCode.resultPoints
@@ -69,14 +55,6 @@ class BarCodeReadEvent private constructor(
   }
 
   companion object {
-    private val EVENTS_POOL = Pools.SynchronizedPool<BarCodeReadEvent>(3)
-    fun obtain(viewTag: Int, barCode: Result, width: Int, height: Int): BarCodeReadEvent {
-      var event = EVENTS_POOL.acquire()
-      if (event == null) {
-        event = BarCodeReadEvent(barCode, width, height)
-      }
-      event.init(viewTag)
-      return event
-    }
+    const val EVENT_NAME = "onBarCodeRead"
   }
 }

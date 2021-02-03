@@ -1,5 +1,7 @@
 package com.reactnativecamera.barcode
 
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.DecodeHintType
 import com.google.zxing.MultiFormatReader
@@ -14,7 +16,8 @@ import java.util.*
 
 class BarcodePlugin(
   options: BarcodeOptions,
-  delegate: PluginDelegate
+  delegate: PluginDelegate,
+  private val reactContext: ReactApplicationContext
 ) : Plugin(BarcodePluginManager.NAME, delegate), BarCodeScannerAsyncTaskDelegate {
   private var mMultiFormatReader: MultiFormatReader
   private var mBarCodeTypes = options.barcodeTypes
@@ -22,50 +25,64 @@ class BarcodePlugin(
 
   init {
     mMultiFormatReader = makeMultiFormatReader()
+    resume()
   }
 
   @Volatile
   private var barCodeScannerTaskLock = false
+
+  val scanning: Boolean
+    get() = delegate.cameraView.scanning
 
   fun setBarCodeTypes(barCodeTypes: List<String>) {
     mBarCodeTypes = barCodeTypes
     mMultiFormatReader = makeMultiFormatReader()
   }
 
+  fun stop() {
+    delegate.cameraView.scanning = false
+  }
+
+  fun resume() {
+    delegate.cameraView.scanning = true
+  }
+
 
   override fun onFramePreview(cameraView: CameraView, data: ByteArray, width: Int, height: Int, rotation: Int) {
     if (!barCodeScannerTaskLock) {
       barCodeScannerTaskLock = true
-      val delegate: BarCodeScannerAsyncTaskDelegate? = cameraView as BarCodeScannerAsyncTaskDelegate?
       BarCodeScannerAsyncTask(
         this,
         mMultiFormatReader,
         data,
         width,
         height,
-        rectOfInterest,
-        cameraViewSize.width,
-        cameraViewSize.height,
-        cameraViewAspectRatio!!.toFloat()
+        rectOfInterest
       ).execute()
     }
   }
 
   override fun dispose() {
-
+    stop()
   }
 
   override fun onBarCodeRead(barCode: Result?, width: Int, height: Int, imageData: ByteArray) {
-    if (barCode == null) {
+    val result = barCode ?: return
+
+    val event = BarCodeReadEvent(result, width, height)
+
+    if (!mBarCodeTypes.contains(event.type)) {
       return
     }
 
-    val barCodeType = barCode.barcodeFormat.toString()
-    if (!mBarCodeTypes.contains(barCodeType)) {
-      return
-    }
+    reactContext
+      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+      .emit(
+        BarCodeReadEvent.EVENT_NAME,
+        event.serializeEventData(delegate.cameraView.id)
+      );
 
-    emitEvent(BarCodeReadEvent.obtain(delegate.cameraView.id, barCode, width, height))
+    stop()
   }
 
   override fun onBarCodeScanningTaskCompleted() {

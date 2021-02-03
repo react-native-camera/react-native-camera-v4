@@ -49,7 +49,6 @@ class RNCameraView(themedReactContext: ThemedReactContext) : CameraView(themedRe
   private var mPaddingX = 0
   private var mPaddingY = 0
 
-
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
     val preview = view ?: return
     val width = (right - left).toFloat()
@@ -85,13 +84,6 @@ class RNCameraView(themedReactContext: ThemedReactContext) : CameraView(themedRe
 
   override val cameraView: RNCameraView
     get() = this
-
-  override fun setAspectRatio(ratio: AspectRatio) {
-    super.setAspectRatio(ratio)
-    plugins.values.forEach {
-      it.cameraViewAspectRatio = ratio
-    }
-  }
 
   @SuppressLint("all")
   override fun requestLayout() {
@@ -151,12 +143,6 @@ class RNCameraView(themedReactContext: ThemedReactContext) : CameraView(themedRe
       } catch (e: IOException) {
         promise.reject("E_RECORDING_FAILED", "Starting video recording failed - could not create video file.")
       }
-    }
-  }
-
-  fun setCameraViewDimensions(width: Int, height: Int) {
-    plugins.values.forEach {
-      it.cameraViewSize = Size(width, height)
     }
   }
 

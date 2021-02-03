@@ -1,8 +1,9 @@
 import { Rect } from '@react-native-camera/core'
 
-import { BarCodeTypes } from './barcode'
+import { BarCodeType } from './barcode'
 
 export interface BarcodeOptions {
-  barcodeTypes: BarCodeTypes[]
+  barcodeTypes: BarCodeType[]
   rectOfInterest?: Rect
+  disabled?: boolean
 }

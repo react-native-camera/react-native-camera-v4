@@ -1275,8 +1275,7 @@ internal class Camera1(callback: Callback, preview: PreviewImpl, bgHandler: Hand
     }
     mMediaRecorder!!.setOutputFile(path)
     mVideoPath = path
-    val camProfile: CamcorderProfile
-    camProfile = if (CamcorderProfile.hasProfile(mCameraId, profile.quality)) {
+    val camProfile: CamcorderProfile = if (CamcorderProfile.hasProfile(mCameraId, profile.quality)) {
       CamcorderProfile.get(mCameraId, profile.quality)
     } else {
       CamcorderProfile.get(mCameraId, CamcorderProfile.QUALITY_HIGH)

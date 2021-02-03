@@ -12,10 +12,7 @@ class BarCodeScannerAsyncTask     //  note(sjchmiela): From my short research it
   private val mImageData: ByteArray,
   private val mWidth: Int,
   private val mHeight: Int,
-  private val mRectOfInterest: RectOfInterest? = null,
-  private val mCameraViewWidth: Int,
-  private val mCameraViewHeight: Int,
-  private val mRatio: Float
+  private val mRectOfInterest: RectOfInterest? = null
 ) : AsyncTask<Void?, Void?, Result?>() {
 
   override fun doInBackground(vararg ignored: Void?): Result? {
@@ -24,17 +21,10 @@ class BarCodeScannerAsyncTask     //  note(sjchmiela): From my short research it
     }
     var result: Result? = null
 
-    /**
-     * mCameraViewWidth and mCameraViewHeight are obtained from portait orientation
-     * mWidth and mHeight are measured with landscape orientation with Home button to the right
-     * adjustedCamViewWidth is the adjusted width from the Aspect ratio setting
-     */
-    val adjustedCamViewWidth = (mCameraViewHeight / mRatio).toInt()
-    val adjustedScanY = ((adjustedCamViewWidth - mCameraViewWidth) / 2 + rectOfInterest.y * mCameraViewWidth) / adjustedCamViewWidth
-    val left = (rectOfInterest.x * mWidth).toInt()
-    val top = (adjustedScanY * mHeight).toInt()
-    val scanWidth = (rectOfInterest.width * mWidth).toInt()
-    val scanHeight = (rectOfInterest.height * mCameraViewWidth / adjustedCamViewWidth * mHeight).toInt()
+    val left: Int = mRectOfInterest?.x ?: 0
+    val top = mRectOfInterest?.y ?: 0
+    val scanWidth = mRectOfInterest?.width ?: mWidth
+    val scanHeight = mRectOfInterest?.height ?: mHeight
     try {
       val bitmap = generateBitmapFromImageData(
         mImageData,
@@ -115,16 +105,13 @@ class BarCodeScannerAsyncTask     //  note(sjchmiela): From my short research it
     return rotated
   }
 
-  private val rectOfInterest: RectOfInterest
-    get() = mRectOfInterest ?: RectOfInterest(0.0f, 0.0f, 0.0f, 0.0f)
-
   private fun generateBitmapFromImageData(imageData: ByteArray, width: Int, height: Int, inverse: Boolean, left: Int, top: Int, sWidth: Int, sHeight: Int): BinaryBitmap {
     val source: PlanarYUVLuminanceSource = PlanarYUVLuminanceSource(
       imageData,  // byte[] yuvData
       width,  // int dataWidth
       height,  // int dataHeight
-      if(mRectOfInterest != null) left else 0,  // int left
-      if(mRectOfInterest != null) top else 0,  // int top
+      left,  // int left
+      top,  // int top
       sWidth,  // int width
       sHeight,  // int height
       false // boolean reverseHorizontal

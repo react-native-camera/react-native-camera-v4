@@ -1,4 +1,4 @@
-export type AndroidBarCodeTypes =
+export type AndroidBarCodeType =
   | 'aztec'
   | 'ean13'
   | 'ean8'
@@ -17,4 +17,4 @@ export type AndroidBarCodeTypes =
   | 'upc_a'
   | 'upc_ean'
 
-export type BarCodeTypes = AndroidBarCodeTypes
+export type BarCodeType = AndroidBarCodeType

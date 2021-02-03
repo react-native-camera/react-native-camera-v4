@@ -136,15 +136,6 @@ class RNCameraViewManager : ViewGroupManager<RNCameraView>() {
     view.setShouldDetectTouches(touchDetectorEnabled)
   }
 
-  @ReactProp(name = "cameraViewDimensions")
-  fun setCameraViewDimensions(view: RNCameraView, dimensions: ReadableMap?) {
-    if (dimensions != null) {
-      val cameraViewWidth = dimensions.getDouble("width").toInt()
-      val cameraViewHeight = dimensions.getDouble("height").toInt()
-      view.setCameraViewDimensions(cameraViewWidth, cameraViewHeight)
-    }
-  }
-
   @ReactProp(name = "plugins")
   fun setPlugins(view: RNCameraView, plugins: ReadableArray?) {
     val pluginList = mutableListOf<String>()
@@ -168,7 +159,7 @@ class RNCameraViewManager : ViewGroupManager<RNCameraView>() {
 
     // Add plugins
     pluginList.forEach {
-      if (!pluginList.contains((it))) {
+      if (!view.plugins.contains((it))) {
         view.plugins[it] = module.getPluginManager(it).attachCameraInstance(view)
       }
     }

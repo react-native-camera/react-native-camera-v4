@@ -15,14 +15,4 @@ abstract class Plugin(
 
   abstract fun onFramePreview(cameraView: CameraView, data: ByteArray, width: Int, height: Int, rotation: Int)
   abstract fun dispose()
-
-  var cameraViewSize: Size = Size(0, 0)
-  var cameraViewAspectRatio: AspectRatio? = null
-
-  protected fun <T : Event<out Event<*>>?> emitEvent(event: Event<T>) {
-    val reactContext: ReactContext = delegate.cameraView.context as ReactContext
-    reactContext.runOnNativeModulesQueueThread {
-      reactContext.getNativeModule(UIManagerModule::class.java).eventDispatcher.dispatchEvent(event)
-    }
-  }
 }

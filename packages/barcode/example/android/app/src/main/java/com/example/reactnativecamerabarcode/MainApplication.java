@@ -27,7 +27,6 @@ public class MainApplication extends Application implements ReactApplication {
           List<ReactPackage> packages = new PackageList(this).getPackages();
           // Packages that cannot be autolinked yet can be added manually here, for BarcodeExample:
           // packages.add(new MyReactNativePackage());
-          packages.add(new BarcodePackage());
           return packages;
         }
 

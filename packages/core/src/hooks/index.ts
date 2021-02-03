@@ -1,4 +1,4 @@
-import { useCallback, useContext } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 
 import { PluginRegistry, PluginRegistryContext } from '../PluginRegistry'
 
@@ -23,12 +23,11 @@ export const useRegisterCameraPlugin = (plugin: string): (() => void) => {
   }, [plugin, registry])
 }
 
-export const useCameraViewId = (): number => {
-  const cameraViewId = useCameraPluginRegistry().cameraViewId
+export const useCameraViewId = (): number | undefined => {
+  const registry = useCameraPluginRegistry()
+  const [cameraViewId, setCameraViewId] = useState<number | undefined>()
 
-  if (!cameraViewId) {
-    throw new Error('No camera view id found')
-  }
+  useEffect(() => registry.subscribeToCameraViewId(setCameraViewId), [registry])
 
   return cameraViewId
 }

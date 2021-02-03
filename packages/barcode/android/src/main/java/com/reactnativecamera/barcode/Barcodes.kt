@@ -22,4 +22,15 @@ object Barcodes {
     "upc_a" to BarcodeFormat.UPC_A.toString(),
     "upc_ean" to BarcodeFormat.UPC_EAN_EXTENSION.toString()
   )
+
+  fun inverse(barcodeFormat: BarcodeFormat): String {
+    val format = barcodeFormat.toString()
+    for ((own, external) in VALID_BAR_CODE_TYPES) {
+      if (external == format) {
+        return own
+      }
+    }
+
+    throw Exception("Unsupported barcode format $format")
+  }
 }
