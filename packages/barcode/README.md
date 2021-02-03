@@ -5,7 +5,7 @@ Barcode reader plugin
 ## Installation
 
 ```sh
-npm install @react-native-camera/barcode
+yarn @react-native-camera/barcode
 ```
 
 ## Contributing
