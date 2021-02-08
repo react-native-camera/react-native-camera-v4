@@ -6,7 +6,7 @@ To get started with the project, run `yarn` in the root directory to install the
 yarn
 ```
 
-While developing, you can run the [example app](/example/) to test your changes.
+While developing, you can run the [example app](./example/) to test your changes.
 
 To start the packager:
 

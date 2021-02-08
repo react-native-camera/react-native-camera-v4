@@ -1131,11 +1131,14 @@ internal class Camera1(callback: Callback, preview: PreviewImpl, bgHandler: Hand
   private fun setFlashInternal(flash: Int): Boolean {
     if (isCameraOpened) {
       val modes = mCameraParameters!!.supportedFlashModes
-      val mode = FLASH_MODES[flash]
+      var mode = FLASH_MODES[flash]
       if (modes == null) {
         return false
       }
       if (modes.contains(mode)) {
+        if (mode == Parameters.FLASH_MODE_ON && modes.contains(Parameters.FLASH_MODE_TORCH)) {
+          mode = Parameters.FLASH_MODE_TORCH
+        }
         mCameraParameters!!.flashMode = mode
         mFlash = flash
         return true

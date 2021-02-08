@@ -13,7 +13,6 @@ export interface NativeCameraManagerConstants {
     off: number
     on: number
     auto: number
-    torch: number
   }
   AutoFocus: {
     on: boolean | number

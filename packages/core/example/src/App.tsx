@@ -22,7 +22,7 @@ const App: React.FunctionComponent = () => {
           message: 'Grant permissions to record audio',
           buttonPositive: 'Grant',
         }}
-        flashMode={flashEnabled ? 'torch' : 'off'}
+        flashMode={flashEnabled ? 'on' : 'off'}
         onCameraReady={React.useCallback(() => {
           console.log('Camera ready')
         }, [])}

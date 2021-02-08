@@ -22,31 +22,22 @@ import com.reactnativecamera.R
 
 internal class SurfaceViewPreview(context: Context?, parent: ViewGroup?) : PreviewImpl() {
   val mSurfaceView: SurfaceView
-  public override fun getSurface(): Surface {
-    return surfaceHolder.surface
-  }
 
-  public override fun getSurfaceHolder(): SurfaceHolder {
-    return mSurfaceView.getHolder()
-  }
+  override val surface: Surface
+    get() = surfaceHolder!!.surface
+  override val view: View
+    get() = mSurfaceView
+  override val outputClass: Class<*>?
+    get() = SurfaceHolder::class.java
+  override val isReady: Boolean
+    get() = width != 0 && height != 0
 
-  public override fun getView(): View {
-    return mSurfaceView
-  }
-
-  public override fun getOutputClass(): Class<*> {
-    return SurfaceHolder::class.java
-  }
-
-  public override fun setDisplayOrientation(displayOrientation: Int) {}
-  public override fun isReady(): Boolean {
-    return width != 0 && height != 0
-  }
+  override fun setDisplayOrientation(displayOrientation: Int) {}
 
   init {
     val view: View = View.inflate(context, R.layout.surface_view, parent)
     mSurfaceView = view.findViewById(R.id.surface_view) as SurfaceView
-    val holder: SurfaceHolder = mSurfaceView.getHolder()
+    val holder: SurfaceHolder = mSurfaceView.holder
     holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS)
     holder.addCallback(object : SurfaceHolder.Callback {
       override fun surfaceCreated(h: SurfaceHolder) {}

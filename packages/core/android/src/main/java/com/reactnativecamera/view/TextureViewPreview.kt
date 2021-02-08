@@ -32,33 +32,25 @@ internal class TextureViewPreview(context: Context?, parent: ViewGroup?) : Previ
 
   // This method is called only from Camera2.
   @TargetApi(15)
-  public override fun setBufferSize(width: Int, height: Int) {
+  override fun setBufferSize(width: Int, height: Int) {
     mTextureView.surfaceTexture.setDefaultBufferSize(width, height)
   }
 
-  public override fun getSurface(): Surface {
-    return Surface(mTextureView.surfaceTexture)
-  }
+  override val surfaceTexture: SurfaceTexture
+    get() = mTextureView.surfaceTexture
 
-  public override fun getSurfaceTexture(): SurfaceTexture {
-    return mTextureView.surfaceTexture
-  }
-
-  public override fun getView(): View {
-    return mTextureView
-  }
-
-  public override fun getOutputClass(): Class<*> {
-    return SurfaceTexture::class.java
-  }
+  override val surface: Surface
+    get() = Surface(mTextureView.surfaceTexture)
+  override val view: View
+    get() = mTextureView
+  override val outputClass: Class<*>?
+    get() = SurfaceTexture::class.java
+  override val isReady: Boolean
+    get() = mTextureView.surfaceTexture != null
 
   public override fun setDisplayOrientation(displayOrientation: Int) {
     mDisplayOrientation = displayOrientation
     configureTransform()
-  }
-
-  public override fun isReady(): Boolean {
-    return mTextureView.surfaceTexture != null
   }
 
   /**
