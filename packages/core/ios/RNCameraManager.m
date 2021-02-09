@@ -3,7 +3,10 @@
 
 @interface RCT_EXTERN_MODULE(RNCameraManager, RCTViewManager)
 
+RCT_EXPORT_VIEW_PROPERTY(type, NSInteger)
+
 RCT_EXPORT_VIEW_PROPERTY(onCameraReady, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onMountError, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onTouch, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onAudioConnected, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onAudioInterrupted, RCTDirectEventBlock);

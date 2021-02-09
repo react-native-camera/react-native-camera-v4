@@ -15,3 +15,22 @@ func videoOrientationForInterfaceOrientation(orientation: UIInterfaceOrientation
       return nil;
   }
 }
+
+func deviceWithCameraId(_ cameraId: String) -> AVCaptureDevice? {
+  return AVCaptureDevice(uniqueID: cameraId)
+}
+
+func deviceWithMediaType(
+  mediaType: AVMediaType,
+  position: AVCaptureDevice.Position
+) -> AVCaptureDevice? {
+  let devices = AVCaptureDevice.devices(for: mediaType)
+  
+  for device in devices {
+    if (device.position == position) {
+      return device
+    }
+  }
+  
+  return devices.first
+}
