@@ -200,8 +200,10 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       // if session already running, also return and fire ready event
       // this is helpfu when the device type or ID is changed and we must
       // receive another ready event (like Android does)
-      notifyReady()
-      return
+      if (session.isRunning) {
+        notifyReady()
+        return
+      }
       
       // if camera not set (invalid type and no ID) return.
       if (presetCamera == AVCaptureDevice.Position.unspecified && cameraId == nil) {
