@@ -7,10 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-
-		5E555C0D2413F4C50049A1A2 /* Core.m in Sources */ = {isa = PBXBuildFile; fileRef = B3E7B5891CC2AC0600A0062D /* Core.m */; };
-		F4FF95D7245B92E800C19C63 /*  Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FF95D6245B92E800C19C63 /*  Core.swift */; };
-
+		EC31AC9E25D2318F00892A6A /* RNCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC31AC9D25D2318F00892A6A /* RNCamera.swift */; };
+		EC31ACCF25D231C900892A6A /* RNCameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC31ACCE25D231C900892A6A /* RNCameraManager.swift */; };
+		EC31AD0125D2379B00892A6A /* SensorOrientationChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC31AD0025D2379B00892A6A /* SensorOrientationChecker.swift */; };
+		EC31AD6125D2D08300892A6A /* RNCameraManager.m in Sources */ = {isa = PBXBuildFile; fileRef = EC31AD6025D2D08300892A6A /* RNCameraManager.m */; };
+		EC31AD9225D2E00B00892A6A /* CameraUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC31AD9125D2E00B00892A6A /* CameraUtils.swift */; };
+		EC31ADC325D3045F00892A6A /* RNCameraUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC31ADC225D3045F00892A6A /* RNCameraUtils.swift */; };
+		F4FF95D7245B92E800C19C63 /* Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FF95D6245B92E800C19C63 /* Core.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -27,11 +30,15 @@
 
 /* Begin PBXFileReference section */
 		134814201AA4EA6300B7C361 /* libCore.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libCore.a; sourceTree = BUILT_PRODUCTS_DIR; };
-
 		B3E7B5891CC2AC0600A0062D /* Core.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Core.m; sourceTree = "<group>"; };
+		EC31AC9D25D2318F00892A6A /* RNCamera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RNCamera.swift; sourceTree = "<group>"; };
+		EC31ACCE25D231C900892A6A /* RNCameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RNCameraManager.swift; sourceTree = "<group>"; };
+		EC31AD0025D2379B00892A6A /* SensorOrientationChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorOrientationChecker.swift; sourceTree = "<group>"; };
+		EC31AD6025D2D08300892A6A /* RNCameraManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RNCameraManager.m; sourceTree = "<group>"; };
+		EC31AD9125D2E00B00892A6A /* CameraUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraUtils.swift; sourceTree = "<group>"; };
+		EC31ADC225D3045F00892A6A /* RNCameraUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RNCameraUtils.swift; sourceTree = "<group>"; };
 		F4FF95D5245B92E700C19C63 /* Core-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Core-Bridging-Header.h"; sourceTree = "<group>"; };
 		F4FF95D6245B92E800C19C63 /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
-
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,13 +63,25 @@
 		58B511D21A9E6C8500147676 = {
 			isa = PBXGroup;
 			children = (
-
+				EC31ADC225D3045F00892A6A /* RNCameraUtils.swift */,
+				EC31AD6025D2D08300892A6A /* RNCameraManager.m */,
+				EC31ACFF25D2377D00892A6A /* Services */,
+				EC31ACCE25D231C900892A6A /* RNCameraManager.swift */,
+				EC31AC9D25D2318F00892A6A /* RNCamera.swift */,
 				F4FF95D6245B92E800C19C63 /* Core.swift */,
 				B3E7B5891CC2AC0600A0062D /* Core.m */,
 				F4FF95D5245B92E700C19C63 /* Core-Bridging-Header.h */,
-
 				134814211AA4EA7D00B7C361 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		EC31ACFF25D2377D00892A6A /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				EC31AD0025D2379B00892A6A /* SensorOrientationChecker.swift */,
+				EC31AD9125D2E00B00892A6A /* CameraUtils.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -122,10 +141,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-
+				EC31AC9E25D2318F00892A6A /* RNCamera.swift in Sources */,
+				EC31AD6125D2D08300892A6A /* RNCameraManager.m in Sources */,
+				EC31AD9225D2E00B00892A6A /* CameraUtils.swift in Sources */,
 				F4FF95D7245B92E800C19C63 /* Core.swift in Sources */,
-				B3E7B58A1CC2AC0600A0062D /* Core.m in Sources */,
-
+				EC31ACCF25D231C900892A6A /* RNCameraManager.swift in Sources */,
+				EC31AD0125D2379B00892A6A /* SensorOrientationChecker.swift in Sources */,
+				EC31ADC325D3045F00892A6A /* RNCameraUtils.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -238,11 +260,9 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = Core;
 				SKIP_INSTALL = YES;
-
 				SWIFT_OBJC_BRIDGING_HEADER = "Core-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-
 			};
 			name = Debug;
 		};
@@ -259,10 +279,8 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = Core;
 				SKIP_INSTALL = YES;
-
 				SWIFT_OBJC_BRIDGING_HEADER = "Core-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-
 			};
 			name = Release;
 		};
