@@ -21,13 +21,6 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   var movieFileOutput: AVCaptureMovieFileOutput?
   var stillImageOutput: AVCaptureStillImageOutput?
   var pictureSize: AVCaptureSession.Preset?
-  var autoFocus: Int = -1
-  var exposure: Float = -1
-  var exposureIsoMin: Float
-  var exposureIsoMax: Float
-  var presetCamera = AVCaptureDevice.Position.unspecified
-  var cameraId: String?
-  var flashMode: AVCaptureDevice.FlashMode = AVCaptureDevice.FlashMode.off
   var isFocusedOnPoint = false
   var isExposedOnPoint = false
   var invertImageData = true
@@ -39,6 +32,22 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   // MARK: Internal Variables
   private var recordRequested = false
   private var sessionInterrupted = false
+  private var exposureIsoMin: Float?
+  private var exposureIsoMax: Float?
+  private var maxZoom: CGFloat = 0
+  private var zoom: CGFloat = 0
+  private var cameraId: String?
+  private var autoFocus: AVCaptureDevice.FocusMode = .continuousAutoFocus
+  private var autoExposure = false
+  private var presetCamera = AVCaptureDevice.Position.unspecified
+  private var flashMode: AVCaptureDevice.FlashMode = AVCaptureDevice.FlashMode.off
+  private var exposure: Float = -1
+  private var autoFocusPointOfInterest: CGPoint?
+  private var whiteBalance: AVCaptureDevice.WhiteBalanceMode?
+  private var customWhiteBalance: WhiteBalanceSettings?
+  private var nativeZoom = false
+  private var pinchGestureRecognizer: UIPinchGestureRecognizer?
+  private var focusDepth: Float?
   
   
   // MARK: React Events
@@ -47,6 +56,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   @objc var onTouch: RCTDirectEventBlock?
   @objc var onAudioConnected: RCTDirectEventBlock?
   @objc var onAudioInterrupted: RCTDirectEventBlock?
+  @objc var onSubjectAreaChanged: RCTDirectEventBlock?
   
   
   // MARK: Computed Properties
@@ -154,6 +164,14 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   
   
   // MARK: React Props Change Handlers
+  @objc func setCameraId(_ cameraId: NSString) {
+    let currentCameraId = self.cameraId
+    if currentCameraId != nil && currentCameraId == cameraId as String { return }
+
+    self.cameraId = cameraId as String
+    updateType()
+  }
+
   @objc func setType(_ type: NSInteger) {
     guard let parsedType = AVCaptureDevice.Position(rawValue: type) else {
       rctLogWarn("Camera type \(type) is not a valid AVCaptureDevice.Position value")
@@ -164,10 +182,114 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     }
     
     presetCamera = parsedType
-    initializeCaptureSessionInput()
-    startSession()
+    updateType()
+  }
+  
+  @objc func setMaxZoom(_ maxZoom: NSNumber) {
+    self.maxZoom = CGFloat(truncating: maxZoom)
+    updateZoom()
   }
 
+  @objc func setZoom(_ zoom: NSNumber) {
+    self.zoom = CGFloat(truncating: zoom)
+    updateZoom()
+  }
+  
+  @objc func setAutoFocus(_ autoFocus: NSInteger) {
+    guard let parsedFocus = AVCaptureDevice.FocusMode(rawValue: autoFocus) else {
+      rctLogWarn("Focus mode \(autoFocus) is not a valid AVCaptureDevice.FocusMode value")
+    }
+    self.autoFocus = parsedFocus
+    updateFocusMode()
+  }
+
+  @objc func setFlashMode(_ flashMode: NSInteger) {
+    guard let parsedFlashMode = AVCaptureDevice.FlashMode(rawValue: flashMode) else {
+      rctLogWarn("Flash mode \(flashMode) is not a valid AVCaptureDevice.FlashMode value")
+    }
+    self.flashMode = parsedFlashMode
+    updateFlashMode()
+  }
+  
+  @objc func setExposure(_ exposure: NSNumber) {
+    guard let parsedExposure = Float(exactly: exposure) else { return }
+    self.exposure = parsedExposure
+    updateExposure()
+  }
+  
+  @objc func setAutoFocusPointOfInterest(_ autoFocusPointOfInterest: NSDictionary?) {
+    guard let pointOfInterest = autoFocusPointOfInterest else {
+      self.autoFocusPointOfInterest = nil
+      self.autoExposure = false
+      updateAutoFocusPointOfInterest()
+      return
+    }
+
+    guard let x = pointOfInterest["x"] as? Float,
+          let y = pointOfInterest["y"] as? Float
+    else {
+      rctLogWarn("autoFocusPointOfInterest prop must have the shape { x: Float, y: Float }")
+      return
+    }
+    
+    self.autoFocusPointOfInterest = CGPoint(x: CGFloat(x), y: CGFloat(y))
+    self.autoExposure = pointOfInterest["autoExposure"] as? Bool ?? false
+    updateAutoFocusPointOfInterest()
+  }
+  
+  @objc func setWhiteBalance(_ whiteBalance: NSInteger) {
+    guard let parsedWhiteBalance = AVCaptureDevice.WhiteBalanceMode(rawValue: whiteBalance) else {
+      rctLogWarn("Invalid whiteBalance prop \(whiteBalance), it is not a valid AVCaptureDevice.WhiteBalanceMode")
+      return
+    }
+    
+    if (parsedWhiteBalance == .locked) {
+      rctLogWarn("To use a locked specific white balance set the property customWhiteBalance")
+      return
+    }
+
+    self.whiteBalance = parsedWhiteBalance
+    self.customWhiteBalance = nil
+    updateWhiteBalance()
+  }
+  
+  @objc func setCustomWhiteBalance(_ customWhiteBalance: NSDictionary?) {
+    guard let balance = customWhiteBalance else {
+      self.customWhiteBalance = nil
+      updateWhiteBalance()
+      return
+    }
+    
+    guard let temperature = balance["temperature"] as? Float,
+          let tint = balance["tint"] as? Float,
+          let redGainOffset = balance["redGainOffset"] as? Float,
+          let greenGainOffset = balance["greenGainOffset"] as? Float,
+          let blueGainOffset = balance["blueGainOffset"] as? Float
+    else {
+      rctLogWarn("customWhiteBalance prop must have the shape: { temperature: Float, tint: Float, redGainOffset: Float, greenGainOffest: Float, blueGainOffest: Float}")
+      return
+    }
+    
+    self.customWhiteBalance = WhiteBalanceSettings(
+      temperature: temperature,
+      tint: tint,
+      redGainOffset: redGainOffset,
+      greenGainOffset: greenGainOffset,
+      blueGainOffset: blueGainOffset
+    )
+    self.whiteBalance = nil
+    updateWhiteBalance()
+  }
+  
+  @objc func setNativeZoom(_ nativeZoom: Bool) {
+    self.nativeZoom = nativeZoom
+    setupOrDisablePinchZoom()
+  }
+  
+  @objc func setFocusDepth(_ focusDepth: NSNumber) {
+    self.focusDepth = Float(exactly: focusDepth)
+    updateFocusDepth()
+  }
   
   // MARK: Camera Lifecycle
   private func initialize() {
@@ -433,7 +555,8 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
         sessionQueue.async {
           updateZoom()
           updateFocusMode()
-          updateExpoure()
+          updateFocusDepth()
+          updateExposure()
           updateAutoFocusPointOfInterest()
           updateWhiteBalance()
           updateFlashMode()
@@ -441,7 +564,6 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
         
         if let validOrientation = orientation {
           previewLayer.connection?.videoOrientation = validOrientation
-          _updateMetadataObjectsToRecognize()
         }
       } else {
         rctLogWarn("The selected device (\(device.uniqueID)) doesnt support preset \(session.sessionPreset) or configuration")
@@ -548,11 +670,39 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     changePreviewOrientation(orientation: UIApplication.shared.statusBarOrientation)
   }
   
+  @objc private func autoFocusDelegate(_ notification: Notification) {
+    let device = notification.object as! AVCaptureDevice
+    lockDevice(device) {
+      defocusPointOfInterest()
+      deexposePointOfInterest()
+    }
+  }
+  
   @objc private func handleSingleTap(sender: UITapGestureRecognizer) {
     handleTap(sender: sender, isDouble: false)
   }
   @objc private func handleDoubleTap(sender: UITapGestureRecognizer) {
     handleTap(sender: sender, isDouble: true)
+  }
+  
+  @objc private func handlePinchToZoomRecognizer(sender: UIPinchGestureRecognizer) {
+    guard let device = videoCaptureDeviceInput?.device else { return }
+    
+    if (sender.state == .changed) {
+      maxZoom = getMaxZoomFactor(device: device)
+      do {
+        try device.lockForConfiguration()
+      } catch {
+        rctLogWarn("Unable to lock device for configuration: \(error.localizedDescription)")
+        return
+      }
+      
+      let desiredZoomFactor = device.videoZoomFactor +
+        CGFloat(atan2f(Float(sender.velocity), 5.0))
+      
+      device.videoZoomFactor = max(1, min(desiredZoomFactor, maxZoom))
+      device.unlockForConfiguration()
+    }
   }
   
   func orientationSet(orientation: UIInterfaceOrientation) {
@@ -583,6 +733,14 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     }
     
     return AVCaptureSession.Preset.high
+  }
+  
+  private func getMaxZoomFactor(device: AVCaptureDevice) -> CGFloat {
+    if (maxZoom > 1) {
+      return min(maxZoom, device.activeFormat.videoMaxZoomFactor)
+    } else {
+      return device.activeFormat.videoMaxZoomFactor;
+    }
   }
   
   private func lockDevice(_ device: AVCaptureDevice, applySettings: () -> Void) {
@@ -622,6 +780,20 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     }
   }
   
+  private func setupOrDisablePinchZoom() {
+    if (nativeZoom) {
+      let recognizer = UIPinchGestureRecognizer(
+        target: self,
+        action: #selector(handlePinchToZoomRecognizer)
+      )
+      pinchGestureRecognizer = recognizer
+      addGestureRecognizer(recognizer)
+    } else if let recognizer = pinchGestureRecognizer {
+      removeGestureRecognizer(recognizer)
+      pinchGestureRecognizer = nil
+    }
+  }
+  
   private func updateFlashMode() {
     guard let device = videoCaptureDeviceInput?.device else { return }
     if (!device.hasFlash || !device.isFlashModeSupported(flashMode)) {
@@ -631,6 +803,247 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     
     lockDevice(device) {
       device.flashMode = flashMode
+    }
+  }
+  
+  private func updateZoom() {
+    guard let device = videoCaptureDeviceInput?.device else { return }
+    
+    lockDevice(device) {
+      let maxZoom = getMaxZoomFactor(device: device)
+      device.videoZoomFactor = (maxZoom - 1 ) * zoom + 1
+    }
+  }
+  
+  private func updateFocusMode() {
+    guard let device = videoCaptureDeviceInput?.device else { return }
+    
+    if (device.isFocusModeSupported(autoFocus)) {
+      lockDevice(device) {
+        device.focusMode = autoFocus
+      }
+    }
+  }
+  
+  private func updateFocusDepth() {
+    guard let device = videoCaptureDeviceInput?.device,
+          let focusDepth = self.focusDepth else { return }
+    
+    if (device.focusMode != .locked) {
+      rctLogWarn("Focus depth is only supported for locked focus mode")
+      return
+    }
+    
+    if (!device.isLockingFocusWithCustomLensPositionSupported) {
+      rctLogWarn("Device does not support focusDepth")
+      return
+    }
+    
+    lockDevice(device) {
+      device.setFocusModeLocked(lensPosition: focusDepth, completionHandler: nil)
+    }
+  }
+
+  
+  private func updateAutoFocusPointOfInterest() {
+    guard let device = videoCaptureDeviceInput?.device else { return }
+    
+    lockDevice(device) {
+      if let pointOfInterest = autoFocusPointOfInterest {
+        if (device.isFocusPointOfInterestSupported && device.isFocusModeSupported(.continuousAutoFocus)) {
+          device.focusPointOfInterest = pointOfInterest
+          device.focusMode = .continuousAutoFocus
+          
+          if (!isFocusedOnPoint) {
+            isFocusedOnPoint = true
+            
+            NotificationCenter.default.addObserver(
+              self,
+              selector: #selector(autoFocusDelegate),
+              name: .AVCaptureDeviceSubjectAreaDidChange,
+              object: device
+            )
+            device.isSubjectAreaChangeMonitoringEnabled = true
+          }
+        } else {
+          rctLogWarn("AutoFocusPointOfInterest not supported")
+        }
+        
+        if (autoExposure) {
+          if (device.isExposurePointOfInterestSupported && device.isExposureModeSupported(.continuousAutoExposure)) {
+            isExposedOnPoint = true
+          } else {
+            rctLogWarn("AutoExposurePointOfInterest not supported")
+          }
+        } else {
+          deexposePointOfInterest()
+        }
+      } else {
+        defocusPointOfInterest()
+        deexposePointOfInterest()
+      }
+    }
+  }
+  
+  private func deexposePointOfInterest() {
+    let deviceOrNil = videoCaptureDeviceInput?.device
+    
+    if (isExposedOnPoint) {
+      isExposedOnPoint = false
+      
+      if let device = deviceOrNil {
+        let exposurePoint = CGPoint(x: 0.5, y: 0.5)
+        device.exposurePointOfInterest = exposurePoint
+        device.exposureMode = .continuousAutoExposure
+      }
+    }
+  }
+  
+  private func defocusPointOfInterest() {
+    let deviceOrNil = videoCaptureDeviceInput?.device
+    
+    if isFocusedOnPoint {
+      isFocusedOnPoint = false
+      
+      if let device = deviceOrNil {
+        device.isSubjectAreaChangeMonitoringEnabled = false
+        NotificationCenter.default.removeObserver(
+          self,
+          name: .AVCaptureDeviceSubjectAreaDidChange,
+          object: device
+        )
+        
+        let prevPoint = device.focusPointOfInterest
+        let autofocusPoint = CGPoint(x: 0.5, y: 0.5)
+        device.focusPointOfInterest = autofocusPoint
+        device.focusMode = .continuousAutoFocus
+        
+        if let handler = onSubjectAreaChanged {
+          handler(["prevPointOfInterest": ["x": prevPoint.x, "y": prevPoint.y]])
+        }
+      }
+    }
+    
+    if (isExposedOnPoint) {
+      isExposedOnPoint = false
+      
+      if let device = deviceOrNil {
+        device.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        device.exposureMode = .continuousAutoExposure
+      }
+    }
+  }
+  
+  /// Set the AVCaptureDevice's ISO values based on RNCamera's 'exposure' value,
+  /// which is a float between 0 and 1 if defined by the user or -1 to indicate that no
+  /// selection is active. 'exposure' gets mapped to a valid ISO value between the
+  /// device's min/max-range of ISO-values.
+  ///
+  /// The exposure gets reset every time the user manually sets the autofocus-point in
+  /// 'updateAutoFocusPointOfInterest' automatically. Currently no explicit event is fired.
+  /// This leads to two 'exposure'-states: one here and one in the component, which is
+  /// fine. 'exposure' here gets only synced if 'exposure' on the js-side changes. You
+  /// can manually keep the state in sync by setting 'exposure' in your React-state
+  /// everytime the js-updateAutoFocusPointOfInterest-function gets called.
+  private func updateExposure() {
+    guard let device = videoCaptureDeviceInput?.device else { return }
+    
+    lockDevice(device) {
+      if (exposure < 0 || exposure > 1) {
+        device.exposureMode = AVCaptureDevice.ExposureMode.continuousAutoExposure
+        return
+      }
+      
+      let isoMin: Float
+      let isoMax: Float
+      
+      if let knownMin = exposureIsoMin {
+        isoMin = knownMin
+      } else {
+        isoMin = device.activeFormat.minISO
+        exposureIsoMin = isoMin
+      }
+      
+      if let knownMax = exposureIsoMax {
+        isoMax = knownMax
+      } else {
+        isoMax = device.activeFormat.maxISO
+        exposureIsoMax = isoMax
+      }
+      
+      // Get a valid ISO-value in range from min to max. After we mapped the exposure
+      // (a val between 0 - 1), the result gets corrected by the offset from 0, which
+      // is the min-ISO-value.
+      let appliedExposure = (isoMax - isoMin) * exposure + isoMin
+      
+      // Make sure we're in AVCaptureExposureModeCustom, else the ISO + duration time won't apply.
+      // Also make sure the device can set exposure
+      if (device.isExposureModeSupported(.custom)) {
+        if (device.exposureMode != .custom) {
+          device.exposureMode = .custom
+        }
+        
+        device.setExposureModeCustom(
+          duration: AVCaptureDevice.currentExposureDuration,
+          iso: appliedExposure,
+          completionHandler: nil
+        )
+      } else {
+        rctLogWarn("Device does not support AVCaptureDevice.ExposureMode.custom")
+      }
+    }
+  }
+  
+  private func updateType() {
+    initializeCaptureSessionInput()
+    startSession()
+  }
+  
+  private func updateWhiteBalance() {
+    if let customWhiteBalance = self.customWhiteBalance {
+      applyCustomWhiteBalance(customWhiteBalance)
+    } else {
+      applyWhiteBalance()
+    }
+  }
+  
+  private func applyWhiteBalance() {
+    guard let device = videoCaptureDeviceInput?.device else { return }
+    
+    lockDevice(device) {
+      if let whiteBalance = self.whiteBalance {
+        device.whiteBalanceMode = whiteBalance
+      } else {
+        device.whiteBalanceMode = .continuousAutoWhiteBalance
+      }
+    }
+  }
+  
+  private func applyCustomWhiteBalance(_ whiteBalance: WhiteBalanceSettings) {
+    guard let device = videoCaptureDeviceInput?.device else { return }
+    
+    lockDevice(device) {
+      if (!device.isWhiteBalanceModeSupported(.locked)) {
+        rctLogWarn("Locked white balance mode is not supported, falling back to continous auto white balance mode")
+        device.whiteBalanceMode = .continuousAutoWhiteBalance
+        return
+      }
+      
+      let temperatureAndTint = AVCaptureDevice.WhiteBalanceTemperatureAndTintValues(
+        temperature: whiteBalance.temperature,
+        tint: whiteBalance.tint
+      )
+      var deviceRgbGains = device.deviceWhiteBalanceGains(for: temperatureAndTint)
+      
+      let redGain = deviceRgbGains.redGain + whiteBalance.redGainOffset
+      let greenGain = deviceRgbGains.greenGain + whiteBalance.greenGainOffset
+      let blueGain = deviceRgbGains.blueGain + whiteBalance.blueGainOffset
+      
+      deviceRgbGains.redGain = max(1, min(device.maxWhiteBalanceGain, redGain))
+      deviceRgbGains.greenGain = max(1, min(device.maxWhiteBalanceGain, greenGain))
+      deviceRgbGains.blueGain = max(1, min(device.maxWhiteBalanceGain, blueGain))
+      
+      device.setWhiteBalanceModeLocked(with: deviceRgbGains, completionHandler: nil)
     }
   }
   
