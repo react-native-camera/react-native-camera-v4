@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import MobileCoreServices
 
 protocol RNCameraDelegate {
   func onTouch(data: NSDictionary)
@@ -10,6 +11,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   // MARK: Immutable Variables
   let sessionQueue = dispatch_queue_serial_t(label: "cameraQueue")
   let session = AVCaptureSession()
+  let previewLayer: AVCaptureVideoPreviewLayer
   let sensorOrientationChecker = SensorOrientationChecker()
 
   
@@ -17,7 +19,6 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   var delegate: RNCameraDelegate?
   var videoCaptureDeviceInput: AVCaptureDeviceInput?
   var audioCaptureDeviceInput: AVCaptureDeviceInput?
-  var previewLayer: AVCaptureVideoPreviewLayer
   var movieFileOutput: AVCaptureMovieFileOutput?
   var stillImageOutput: AVCaptureStillImageOutput?
   var pictureSize: AVCaptureSession.Preset?
@@ -48,6 +49,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   private var nativeZoom = false
   private var pinchGestureRecognizer: UIPinchGestureRecognizer?
   private var focusDepth: Float?
+  private var deviceOrientation: UIInterfaceOrientation?
   
   
   // MARK: React Events
@@ -57,6 +59,8 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   @objc var onAudioConnected: RCTDirectEventBlock?
   @objc var onAudioInterrupted: RCTDirectEventBlock?
   @objc var onSubjectAreaChanged: RCTDirectEventBlock?
+  @objc var onPictureTaken: RCTDirectEventBlock?
+  @objc var onPictureSaved: RCTDirectEventBlock?
   
   
   // MARK: Computed Properties
@@ -67,11 +71,13 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   
   // MARK: Constructors
   required init?(coder: NSCoder) {
+    previewLayer = AVCaptureVideoPreviewLayer(session: session)
     super.init(coder: coder)
     initialize()
   }
   
   override init(frame: CGRect) {
+    previewLayer = AVCaptureVideoPreviewLayer(session: session)
     super.init(frame: frame)
     initialize()
   }
@@ -175,6 +181,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   @objc func setType(_ type: NSInteger) {
     guard let parsedType = AVCaptureDevice.Position(rawValue: type) else {
       rctLogWarn("Camera type \(type) is not a valid AVCaptureDevice.Position value")
+      return
     }
 
     if (parsedType == presetCamera) {
@@ -198,6 +205,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   @objc func setAutoFocus(_ autoFocus: NSInteger) {
     guard let parsedFocus = AVCaptureDevice.FocusMode(rawValue: autoFocus) else {
       rctLogWarn("Focus mode \(autoFocus) is not a valid AVCaptureDevice.FocusMode value")
+      return
     }
     self.autoFocus = parsedFocus
     updateFocusMode()
@@ -206,6 +214,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   @objc func setFlashMode(_ flashMode: NSInteger) {
     guard let parsedFlashMode = AVCaptureDevice.FlashMode(rawValue: flashMode) else {
       rctLogWarn("Flash mode \(flashMode) is not a valid AVCaptureDevice.FlashMode value")
+      return
     }
     self.flashMode = parsedFlashMode
     updateFlashMode()
@@ -291,10 +300,303 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     updateFocusDepth()
   }
   
+  
+  // MARK: Public methods
+  @objc func takePicture(
+    _ options: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    reject: @escaping RCTPromiseRejectBlock
+  ) {
+    let takePictureOptions: TakePictureOptions
+    do {
+      takePictureOptions = try parseTakePictureOptions(options)
+    } catch {
+      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, error.localizedDescription, error)
+      return
+    }
+    
+    if (!session.isRunning) {
+      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Camera is not ready.", nil)
+      return
+    }
+    
+    guard let imageOutput = stillImageOutput else {
+      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "No still image output.", nil)
+      return
+    }
+    
+    guard let orientation = takePictureOptions.orientation ?? convertToAVCaptureVideoOrientation(deviceOrientation) else {
+      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to determine orientation", nil)
+      return
+    }
+    
+    let mediaType: AVMediaType = .video
+    
+    guard let connection = imageOutput.connection(with: mediaType) else {
+      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to retrieve connection from still image output with media type \(mediaType)", nil)
+      return
+    }
+
+    connection.videoOrientation = orientation
+    
+    imageOutput.captureStillImageAsynchronously(from: connection) { [self] imageSampleBufferOrNil, errorOrNil in
+      guard let imageSampleBuffer = imageSampleBufferOrNil else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "No image sample buffer retrieved", nil)
+        return
+      }
+      
+      if let error = errorOrNil {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, error.localizedDescription, error)
+        return
+      }
+      
+      if (takePictureOptions.pauseAfterCapture) {
+        previewLayer.connection?.isEnabled = false
+      }
+      
+      if (takePictureOptions.fastMode) {
+        resolve(nil)
+      }
+      
+      if let handler = onPictureTaken {
+        handler(nil)
+      }
+      
+      // get JPEG image data
+      guard let imageData = AVCaptureStillImageOutput.jpegStillImageNSDataRepresentation(imageSampleBuffer) else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to get JPEG representation from captured still image", nil)
+        return
+      }
+      
+      guard var takenImage = UIImage(data: imageData) else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to transform still image data to UIImage", nil)
+        return
+      }
+      
+      // Adjust/crop image based on preview dimensions
+      // TODO: This seems needed because iOS does not allow
+      // for aspect ratio settings, so this is the best we can get
+      // to mimic android's behaviour.
+      guard let takenCGIImage = takenImage.cgImage else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to transform UIImage to CGImageRef", nil)
+        return
+      }
+      
+      let previewSize: CGSize
+      if (UIApplication.shared.statusBarOrientation.isPortrait) {
+        previewSize = CGSize.init(
+          width: previewLayer.frame.size.height,
+          height: previewLayer.frame.size.width
+        )
+      } else {
+        previewSize = CGSize.init(
+          width: previewLayer.frame.size.width,
+          height: previewLayer.frame.size.height
+        )
+      }
+      
+      let cropRect = CGRect.init(x: 0, y: 0, width: takenCGIImage.width, height: takenCGIImage.height)
+      let croppedSize = AVMakeRect(aspectRatio: previewSize, insideRect: cropRect)
+      guard let croppedImage = cropImage(takenImage, toRect: croppedSize) else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to crop taken image", nil)
+        return
+      }
+      
+      takenImage = croppedImage
+      
+      // apply other image settings
+      var resetOrientation = false
+      if (takePictureOptions.mirrorImage) {
+        guard let mirroredImage = mirrorImage(takenImage) else {
+          reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to mirror image", nil)
+          return
+        }
+        takenImage = mirroredImage
+      }
+      if (takePictureOptions.forceUpOrientation) {
+        guard let forcedUpOrientationImage = forceUpOrientation(takenImage) else {
+          reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to force up orientation", nil)
+          return
+        }
+        takenImage = forcedUpOrientationImage
+        resetOrientation = true
+      }
+      if let width = takePictureOptions.width {
+        guard let scaledImage = scaleImage(takenImage, toWidth: width) else {
+          reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to scale image to width \(width)", nil)
+          return
+        }
+        takenImage = scaledImage
+        resetOrientation = true
+      }
+      
+      // get image metadata so we can re-add it later
+      // make it mutable since we need to adjust quality/compression
+      guard let metaDict = CMCopyDictionaryOfAttachments(allocator: nil, target: imageSampleBuffer, attachmentMode: kCMAttachmentMode_ShouldPropagate) else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Failed to copy metadata", nil)
+        return
+      }
+      guard var metadata = CFDictionaryCreateMutableCopy(nil, 0, metaDict) as? [String: Any] else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Failed to create mutable copy of metadata", nil)
+        return
+      }
+      
+      var imageType: ImageType = .jpeg
+      var imageTypeIdentifier = kUTTypeJPEG
+      var imageExtension = ".jpg"
+      if (takePictureOptions.imageType == "png") {
+        imageType = .png
+        imageTypeIdentifier = kUTTypePNG
+        imageExtension = ".png"
+      }
+      
+      // Get final JPEG image and set compression
+      let qualityKey = kCGImageDestinationLossyCompressionQuality as String
+      if imageType == .jpeg, let quality = takePictureOptions.quality {
+        metadata[qualityKey] = quality
+      }
+      
+      // Reset exif orientation if we need to due to image changes
+      // that already rotate the image.
+      // Other dimension attributes will be set automatically
+      // regardless of what we have on our metadata dict
+      if (resetOrientation){
+        metadata[kCGImagePropertyOrientation as String] = 1
+      }
+      
+      // get our final image data with added metadata
+      // idea taken from: https://stackoverflow.com/questions/9006759/how-to-write-exif-metadata-to-an-image-not-the-camera-roll-just-a-uiimage-or-j/9091472
+      
+      guard let mutableData = CFDataCreateMutable(nil, 0),
+            let data = mutableData as Data?,
+            let destination = CGImageDestinationCreateWithData(mutableData, imageTypeIdentifier, 1, nil)
+      else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to create mutable CFData reference or CGImageDestionation from it", nil)
+        return
+      }
+
+      if takePictureOptions.writeExif,
+         let newExif = takePictureOptions.exifValues
+      {
+        var exif: [String: Any]
+        let exifOrNil = metadata[kCGImagePropertyExifDictionary as String] as? [String : Any]
+        if let predefinedExif = exifOrNil {
+          exif = predefinedExif
+        } else {
+          exif = Dictionary<String, Any>()
+          metadata[kCGImagePropertyExifDictionary as String] = exif
+        }
+        
+        var tiff: [String: Any]
+        let tiffOrNil = metadata[kCGImagePropertyTIFFDictionary as String] as? [String: Any]
+        if let predefinedTiff = tiffOrNil {
+          tiff = predefinedTiff
+        } else {
+          tiff = Dictionary<String, Any>()
+          metadata[kCGImagePropertyTIFFDictionary as String] = tiff
+        }
+        
+        // merge new exif info
+        newExif.forEach { key, value in
+          exif[key] = value
+          tiff[key] = value
+        }
+        
+        // correct any GPS metadata like Android does
+        // need to get the right format for each value.
+        var gpsDict = Dictionary<String, Any>()
+        
+        if let gpsLatitude = newExif["GPSLatitude"] as? Float {
+          gpsDict[kCGImagePropertyGPSLatitude as String] = abs(gpsLatitude)
+          gpsDict[kCGImagePropertyGPSLatitudeRef as String] = gpsLatitude >= 0 ? "N" : "S"
+        }
+        
+        if let gpsLongitude = newExif["GPSLongitude"] as? Float {
+          gpsDict[kCGImagePropertyGPSLongitude as String] = abs(gpsLongitude)
+          gpsDict[kCGImagePropertyGPSLatitudeRef as String] = gpsLongitude >= 0 ? "E" : "W"
+        }
+        
+        if let gpsAltitude = newExif["GPSAltitude"] as? Float {
+          gpsDict[kCGImagePropertyGPSAltitude as String] = abs(gpsAltitude)
+          gpsDict[kCGImagePropertyGPSAltitudeRef as String] = gpsAltitude >= 0 ? 0 : 1
+        }
+        
+        // if we don't have gps info, add it
+        // otherwise, merge it
+        if var prevGpsMetadata = metadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] {
+          gpsDict.forEach { key, value in prevGpsMetadata[key] = value }
+        } else {
+          metadata[kCGImagePropertyGPSDictionary as String] = gpsDict
+        }
+      }
+      
+      let finalMetaData: Dictionary<String, Any>
+      if (takePictureOptions.writeExif) {
+        finalMetaData = metadata
+      } else if let quality = metadata[qualityKey] {
+        var dict = Dictionary<String, Any>()
+        dict[qualityKey] = quality
+        finalMetaData = dict
+      } else {
+        finalMetaData = Dictionary<String, Any>()
+      }
+      
+      CGImageDestinationAddImage(destination, takenImage.cgImage!, finalMetaData as CFDictionary)
+      
+      guard CGImageDestinationFinalize(destination) else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Image could not be saved", nil);
+        return
+      }
+        
+      let response = NSMutableDictionary()
+
+      guard let path = takePictureOptions.path ?? generatePathInDirectory(cacheDirectoryPath.appending("Camera"), withExtension: imageExtension)
+      else {
+        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to get default path to save picture to", nil)
+        return
+      }
+      
+      if (!takePictureOptions.doNotSave) {
+        do {
+          response["uri"] = try data.write(to: path, options: .atomicWrite)
+        } catch {
+          reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to save picture to \(path.absoluteString): \(error.localizedDescription)", error)
+          return
+        }
+      }
+        
+      response["width"] = takenImage.size.width
+      response["height"] = takenImage.size.height
+      
+      if (takePictureOptions.base64) {
+        response["base64"] = data.base64EncodedString()
+      }
+      
+      if (takePictureOptions.exif) {
+        response["exif"] = metadata
+      }
+      
+      response["pictureOrientation"] = orientation.rawValue
+      response["deviceOrientation"] = deviceOrientation?.rawValue
+      
+      if (takePictureOptions.fastMode) {
+        if let handler = onPictureSaved {
+          var dict = [String: Any]()
+          dict["data"] = response
+          if let id = takePictureOptions.id {
+            dict["id"] = id
+          }
+          handler(dict)
+        }
+      } else {
+        resolve(response)
+      }
+    }
+  }
+  
   // MARK: Camera Lifecycle
   private func initialize() {
     sensorOrientationChecker.delegate = self
-    previewLayer = AVCaptureVideoPreviewLayer(session: session)
     previewLayer.videoGravity = AVLayerVideoGravity.resizeAspectFill
     previewLayer.needsDisplayOnBoundsChange = true
     
@@ -501,6 +803,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     sessionQueue.async { [self] in
       guard let device = getDevice() else {
         notifyMountError("Invalid camera device")
+        return
       }
       
       // if setting a new device is the same we currently have, nothing to do
@@ -508,12 +811,17 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
         return
       }
       
-      var interfaceOrientation: UIInterfaceOrientation;
+      var interfaceOrientationOrNil: UIInterfaceOrientation? = nil
       
       DispatchQueue.main.sync {
-        interfaceOrientation = UIApplication.shared.statusBarOrientation
+        interfaceOrientationOrNil = UIApplication.shared.statusBarOrientation
       }
       
+      guard let interfaceOrientation = interfaceOrientationOrNil else {
+        notifyMountError("Could not retrieve interface orientation from main thread")
+        return
+      }
+
       let orientation = videoOrientationForInterfaceOrientation(orientation: interfaceOrientation)
       
       session.beginConfiguration()
@@ -706,7 +1014,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   }
   
   func orientationSet(orientation: UIInterfaceOrientation) {
-    <#code#>
+    deviceOrientation = orientation
   }
   
   
@@ -1071,4 +1379,8 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       ])
     }
   }
+  
+  
+  // MARK: Static Constants
+  static let TAKE_PICTURE_FAILED_CODE = "E_IMAGE_CAPTURE_FAILED"
 }

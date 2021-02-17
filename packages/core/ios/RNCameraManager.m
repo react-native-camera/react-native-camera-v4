@@ -22,5 +22,7 @@ RCT_EXPORT_VIEW_PROPERTY(onTouch, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onAudioConnected, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onAudioInterrupted, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onSubjectAreaChanged, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onPictureTaken, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onPictureSaved, RCTDirectEventBlock);
 
 @end

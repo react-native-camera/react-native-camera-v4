@@ -34,3 +34,90 @@ func deviceWithMediaType(
   
   return devices.first
 }
+
+func convertToAVCaptureVideoOrientation(_ orientationOrNil: UIInterfaceOrientation?) -> AVCaptureVideoOrientation? {
+  
+  guard let orientation = orientationOrNil else { return nil }
+
+  switch (orientation) {
+    case .portrait:
+      return .portrait;
+    case .portraitUpsideDown:
+      return .portraitUpsideDown;
+    case .landscapeLeft:
+      return .landscapeLeft;
+    case .landscapeRight:
+      return .landscapeRight;
+    default:
+      return nil
+  }
+}
+
+func cropImage(_ image: UIImage, toRect: CGRect) -> UIImage? {
+  guard let takenCGIImage = image.cgImage else {
+    return nil
+  }
+  
+  guard let cropCGImage = takenCGIImage.cropping(to: toRect) else {
+    return nil
+  }
+  
+  return UIImage.init(cgImage: cropCGImage, scale: image.scale, orientation: image.imageOrientation)
+}
+
+
+func mirrorImage(_ image: UIImage) -> UIImage? {
+  guard let cgImage = image.cgImage else {
+    return nil
+  }
+
+  var flippedOrientation = UIImage.Orientation.upMirrored
+  switch (image.imageOrientation) {
+    case .down:
+      flippedOrientation = .downMirrored
+      break
+    case .left:
+      flippedOrientation = .leftMirrored
+      break
+    case .up:
+      flippedOrientation = .upMirrored
+      break
+    case .right:
+      flippedOrientation = .rightMirrored
+      break
+    default:
+      break
+  }
+
+  return UIImage.init(cgImage: cgImage, scale: image.scale, orientation: flippedOrientation)
+}
+
+func forceUpOrientation(_ image: UIImage) -> UIImage? {
+  if (image.imageOrientation == .up) {
+    return image
+  }
+  
+  UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+  image.draw(in: CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height))
+  let result = UIGraphicsGetImageFromCurrentImageContext()
+  UIGraphicsEndImageContext()
+  return result
+}
+
+func scaleImage(_ image: UIImage, toWidth: Int) -> UIImage? {
+  let width = UIScreen.main.scale / CGFloat(toWidth)
+  let scaleRatio = width / image.size.width
+  let size = CGSize(width: width, height: CGFloat(roundf(Float(image.size.height * scaleRatio))))
+  UIGraphicsBeginImageContextWithOptions(size, false, 0.0);
+  image.draw(in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
+  guard let newImage = UIGraphicsGetImageFromCurrentImageContext() else {
+    UIGraphicsEndImageContext();
+    return nil
+  }
+  UIGraphicsEndImageContext();
+  guard let newCgImage = newImage.cgImage else {
+    return nil
+  }
+  
+  return UIImage(cgImage: newCgImage, scale: 1.0, orientation: newImage.imageOrientation)
+}
