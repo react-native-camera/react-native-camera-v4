@@ -302,38 +302,30 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   
   
   // MARK: Public methods
-  @objc func takePicture(
-    _ options: NSDictionary,
-    resolve: @escaping RCTPromiseResolveBlock,
-    reject: @escaping RCTPromiseRejectBlock
+  func takePicture(
+    _ options: TakePictureOptions,
+    completion: @escaping (TakePictureResult?, Error?) -> Void
   ) {
-    let takePictureOptions: TakePictureOptions
-    do {
-      takePictureOptions = try parseTakePictureOptions(options)
-    } catch {
-      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, error.localizedDescription, error)
-      return
-    }
     
     if (!session.isRunning) {
-      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Camera is not ready.", nil)
+      completion(nil, TakePictureError.runtimeError("Camera is not ready."))
       return
     }
     
     guard let imageOutput = stillImageOutput else {
-      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "No still image output.", nil)
+      completion(nil, TakePictureError.runtimeError("No still image output."))
       return
     }
     
-    guard let orientation = takePictureOptions.orientation ?? convertToAVCaptureVideoOrientation(deviceOrientation) else {
-      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to determine orientation", nil)
+    guard let orientation = options.orientation ?? convertToAVCaptureVideoOrientation(deviceOrientation) else {
+      completion(nil, TakePictureError.runtimeError("Unable to determine orientation"))
       return
     }
     
     let mediaType: AVMediaType = .video
     
     guard let connection = imageOutput.connection(with: mediaType) else {
-      reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to retrieve connection from still image output with media type \(mediaType)", nil)
+      completion(nil, TakePictureError.runtimeError("Unable to retrieve connection from still image output with media type \(mediaType)"))
       return
     }
 
@@ -341,21 +333,21 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     
     imageOutput.captureStillImageAsynchronously(from: connection) { [self] imageSampleBufferOrNil, errorOrNil in
       guard let imageSampleBuffer = imageSampleBufferOrNil else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "No image sample buffer retrieved", nil)
+        completion(nil, TakePictureError.runtimeError("No image sample buffer retrieved"))
         return
       }
       
       if let error = errorOrNil {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, error.localizedDescription, error)
+        completion(nil, error)
         return
       }
       
-      if (takePictureOptions.pauseAfterCapture) {
+      if (options.pauseAfterCapture) {
         previewLayer.connection?.isEnabled = false
       }
       
-      if (takePictureOptions.fastMode) {
-        resolve(nil)
+      if (options.fastMode) {
+        completion(nil, nil)
       }
       
       if let handler = onPictureTaken {
@@ -364,12 +356,12 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       
       // get JPEG image data
       guard let imageData = AVCaptureStillImageOutput.jpegStillImageNSDataRepresentation(imageSampleBuffer) else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to get JPEG representation from captured still image", nil)
+        completion(nil, TakePictureError.runtimeError("Unable to get JPEG representation from captured still image"))
         return
       }
       
       guard var takenImage = UIImage(data: imageData) else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to transform still image data to UIImage", nil)
+        completion(nil, TakePictureError.runtimeError("Unable to transform still image data to UIImage"))
         return
       }
       
@@ -378,7 +370,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       // for aspect ratio settings, so this is the best we can get
       // to mimic android's behaviour.
       guard let takenCGIImage = takenImage.cgImage else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to transform UIImage to CGImageRef", nil)
+        completion(nil, TakePictureError.runtimeError("Unable to transform UIImage to CGImageRef"))
         return
       }
       
@@ -398,7 +390,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       let cropRect = CGRect.init(x: 0, y: 0, width: takenCGIImage.width, height: takenCGIImage.height)
       let croppedSize = AVMakeRect(aspectRatio: previewSize, insideRect: cropRect)
       guard let croppedImage = cropImage(takenImage, toRect: croppedSize) else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to crop taken image", nil)
+        completion(nil, TakePictureError.runtimeError("Unable to crop taken image"))
         return
       }
       
@@ -406,24 +398,24 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       
       // apply other image settings
       var resetOrientation = false
-      if (takePictureOptions.mirrorImage) {
+      if (options.mirrorImage) {
         guard let mirroredImage = mirrorImage(takenImage) else {
-          reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to mirror image", nil)
+          completion(nil, TakePictureError.runtimeError("Unable to mirror image"))
           return
         }
         takenImage = mirroredImage
       }
-      if (takePictureOptions.forceUpOrientation) {
+      if (options.forceUpOrientation) {
         guard let forcedUpOrientationImage = forceUpOrientation(takenImage) else {
-          reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to force up orientation", nil)
+          completion(nil, TakePictureError.runtimeError("Unable to force up orientation"))
           return
         }
         takenImage = forcedUpOrientationImage
         resetOrientation = true
       }
-      if let width = takePictureOptions.width {
+      if let width = options.width {
         guard let scaledImage = scaleImage(takenImage, toWidth: width) else {
-          reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to scale image to width \(width)", nil)
+          completion(nil, TakePictureError.runtimeError("Unable to scale image to width \(width)"))
           return
         }
         takenImage = scaledImage
@@ -433,18 +425,18 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       // get image metadata so we can re-add it later
       // make it mutable since we need to adjust quality/compression
       guard let metaDict = CMCopyDictionaryOfAttachments(allocator: nil, target: imageSampleBuffer, attachmentMode: kCMAttachmentMode_ShouldPropagate) else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Failed to copy metadata", nil)
+        completion(nil, TakePictureError.runtimeError("Failed to copy metadata"))
         return
       }
       guard var metadata = CFDictionaryCreateMutableCopy(nil, 0, metaDict) as? [String: Any] else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Failed to create mutable copy of metadata", nil)
+        completion(nil, TakePictureError.runtimeError("Failed to create mutable copy of metadata"))
         return
       }
       
       var imageType: ImageType = .jpeg
       var imageTypeIdentifier = kUTTypeJPEG
       var imageExtension = ".jpg"
-      if (takePictureOptions.imageType == "png") {
+      if (options.imageType == "png") {
         imageType = .png
         imageTypeIdentifier = kUTTypePNG
         imageExtension = ".png"
@@ -452,7 +444,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       
       // Get final JPEG image and set compression
       let qualityKey = kCGImageDestinationLossyCompressionQuality as String
-      if imageType == .jpeg, let quality = takePictureOptions.quality {
+      if imageType == .jpeg, let quality = options.quality {
         metadata[qualityKey] = quality
       }
       
@@ -471,12 +463,12 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
             let data = mutableData as Data?,
             let destination = CGImageDestinationCreateWithData(mutableData, imageTypeIdentifier, 1, nil)
       else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to create mutable CFData reference or CGImageDestionation from it", nil)
+        completion(nil, TakePictureError.runtimeError("Unable to create mutable CFData reference or CGImageDestionation from it"))
         return
       }
 
-      if takePictureOptions.writeExif,
-         let newExif = takePictureOptions.exifValues
+      if options.writeExif,
+         let newExif = options.exifValues
       {
         var exif: [String: Any]
         let exifOrNil = metadata[kCGImagePropertyExifDictionary as String] as? [String : Any]
@@ -531,7 +523,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       }
       
       let finalMetaData: Dictionary<String, Any>
-      if (takePictureOptions.writeExif) {
+      if (options.writeExif) {
         finalMetaData = metadata
       } else if let quality = metadata[qualityKey] {
         var dict = Dictionary<String, Any>()
@@ -544,52 +536,57 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       CGImageDestinationAddImage(destination, takenImage.cgImage!, finalMetaData as CFDictionary)
       
       guard CGImageDestinationFinalize(destination) else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Image could not be saved", nil);
+        completion(nil, TakePictureError.runtimeError("Image could not be saved"));
         return
       }
-        
-      let response = NSMutableDictionary()
 
-      guard let path = takePictureOptions.path ?? generatePathInDirectory(cacheDirectoryPath.appending("Camera"), withExtension: imageExtension)
+      guard let path = takePictureOutputPath(pathOption: options.path, imageExtension: imageExtension)
       else {
-        reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to get default path to save picture to", nil)
+        completion(nil, TakePictureError.runtimeError("Unable to get default path to save picture to"))
         return
       }
       
-      if (!takePictureOptions.doNotSave) {
+      var result = TakePictureResult(
+        uri: nil,
+        base64: nil,
+        exif: nil,
+        deviceOrientation: deviceOrientation,
+        pictureOrientation: orientation,
+        width: takenImage.size.width,
+        height: takenImage.size.height
+      )
+      
+      if (!options.doNotSave) {
         do {
-          response["uri"] = try data.write(to: path, options: .atomicWrite)
+          try data.write(to: path, options: .atomicWrite)
         } catch {
-          reject(RNCamera.TAKE_PICTURE_FAILED_CODE, "Unable to save picture to \(path.absoluteString): \(error.localizedDescription)", error)
+          completion(nil, error)
           return
         }
-      }
         
-      response["width"] = takenImage.size.width
-      response["height"] = takenImage.size.height
-      
-      if (takePictureOptions.base64) {
-        response["base64"] = data.base64EncodedString()
+        result.uri = path.absoluteString
       }
       
-      if (takePictureOptions.exif) {
-        response["exif"] = metadata
+      if (options.base64) {
+        result.base64 = data.base64EncodedString()
       }
       
-      response["pictureOrientation"] = orientation.rawValue
-      response["deviceOrientation"] = deviceOrientation?.rawValue
+      if (options.exif) {
+        result.exif = metadata
+      }
       
-      if (takePictureOptions.fastMode) {
+      if (options.fastMode) {
         if let handler = onPictureSaved {
           var dict = [String: Any]()
-          dict["data"] = response
-          if let id = takePictureOptions.id {
+          dict["data"] = takePictureResultToNSDictionary(result)
+          if let id = options.id {
             dict["id"] = id
           }
           handler(dict)
         }
+        completion(nil, nil)
       } else {
-        resolve(response)
+        completion(result, nil)
       }
     }
   }
@@ -1379,8 +1376,4 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       ])
     }
   }
-  
-  
-  // MARK: Static Constants
-  static let TAKE_PICTURE_FAILED_CODE = "E_IMAGE_CAPTURE_FAILED"
 }

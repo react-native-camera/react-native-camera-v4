@@ -19,7 +19,21 @@ struct TakePictureOptions {
   let id: String?
 }
 
+struct TakePictureResult {
+  var uri: String?
+  var base64: String?
+  var exif: Dictionary<String, Any>?
+  var deviceOrientation: UIInterfaceOrientation?
+  let pictureOrientation: AVCaptureVideoOrientation
+  let width: CGFloat
+  let height: CGFloat
+}
+
 enum InvalidTakePictureOptionsError: Error {
+  case runtimeError(String)
+}
+
+enum TakePictureError: Error {
   case runtimeError(String)
 }
 
@@ -96,4 +110,55 @@ func parseTakePictureOptions(_ options: NSDictionary) throws -> TakePictureOptio
   }
   
   return result
+}
+
+func takePictureResultToNSDictionary(_ result: TakePictureResult) -> NSMutableDictionary {
+  let dictionary = NSMutableDictionary()
+  
+  dictionary["width"] = result.width
+  dictionary["height"] = result.height
+  dictionary["pictureOrientation"] = result.pictureOrientation.rawValue
+  
+  if let uri = result.uri {
+    dictionary["uri"] = uri
+  }
+  
+  if let base64 = result.base64 {
+    dictionary["base64"] = base64
+  }
+  
+  if let exif = result.exif {
+    dictionary["exif"] = exif
+  }
+  
+  if let deviceOrientation = result.deviceOrientation {
+    dictionary["deviceOrientation"] = deviceOrientation.rawValue
+  }
+  
+  return dictionary
+}
+
+func takePictureOutputPath(pathOption: URL?, imageExtension: String) -> URL? {
+  return pathOption ?? generatePathInDirectory(cacheDirectoryPath.appending("Camera"), withExtension: imageExtension)
+}
+
+func generateMockPhoto(_ size: CGSize) -> UIImage? {
+  let rect = CGRect(x: 0, y: 0, width: size.width, height: size.height)
+  UIGraphicsBeginImageContextWithOptions(size, true, 0)
+  let color = UIColor.black
+  color.setFill()
+  UIRectFill(rect)
+  let dateFormatter = DateFormatter()
+  dateFormatter.dateFormat = "dd.MM.YY HH:mm:ss"
+  let text = dateFormatter.string(from: Date()) as NSString
+  text.draw(
+    at: CGPoint(x: size.width * 0.1, y: size.height * 0.9),
+    withAttributes: [
+      .font: UIFont.systemFont(ofSize: 18),
+      .foregroundColor: UIColor.orange
+    ]
+  )
+  let image = UIGraphicsGetImageFromCurrentImageContext()
+  UIGraphicsEndImageContext()
+  return image
 }
