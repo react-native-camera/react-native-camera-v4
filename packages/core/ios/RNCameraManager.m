@@ -15,6 +15,7 @@ RCT_EXPORT_VIEW_PROPERTY(whiteBalance, NSInteger)
 RCT_EXPORT_VIEW_PROPERTY(customWhiteBalance, NSDictionary)
 RCT_EXPORT_VIEW_PROPERTY(nativeZoom, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(focusDepth, NSNumber)
+RCT_EXPORT_VIEW_PROPERTY(videoStabilizationMode, NSInteger)
 
 RCT_EXPORT_VIEW_PROPERTY(onCameraReady, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onMountError, RCTDirectEventBlock);
@@ -24,5 +25,14 @@ RCT_EXPORT_VIEW_PROPERTY(onAudioInterrupted, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onSubjectAreaChanged, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onPictureTaken, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onPictureSaved, RCTDirectEventBlock);
+
+RCT_EXTERN_METHOD(takePicture: (nonnull NSNumber *)node
+                  options: (NSDictionary)options
+                  resolve: (RCTPromiseResolveBlock)resolve
+                  reject: (RCTPromiseRejectBlock))
+RCT_EXTERN_METHOD(record: (nonnull NSNumber *)node
+                  options: (NSDictionary)options
+                  resolve: (RCTPromiseResolveBlock)resolve
+                  reject: (RCTPromiseRejectBlock))
 
 @end

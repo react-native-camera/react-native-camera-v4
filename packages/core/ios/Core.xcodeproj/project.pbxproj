@@ -16,6 +16,7 @@
 		EC31AD6125D2D08300892A6A /* RNCameraManager.m in Sources */ = {isa = PBXBuildFile; fileRef = EC31AD6025D2D08300892A6A /* RNCameraManager.m */; };
 		EC31AD9225D2E00B00892A6A /* CameraUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC31AD9125D2E00B00892A6A /* CameraUtils.swift */; };
 		EC31ADC325D3045F00892A6A /* RNCameraUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC31ADC225D3045F00892A6A /* RNCameraUtils.swift */; };
+		ECE7121D25E3EDB500960951 /* Record.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE7121C25E3EDB500960951 /* Record.swift */; };
 		F4FF95D7245B92E800C19C63 /* Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FF95D6245B92E800C19C63 /* Core.swift */; };
 /* End PBXBuildFile section */
 
@@ -44,6 +45,7 @@
 		EC31AD9125D2E00B00892A6A /* CameraUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraUtils.swift; sourceTree = "<group>"; };
 		EC31ADC225D3045F00892A6A /* RNCameraUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RNCameraUtils.swift; sourceTree = "<group>"; };
 		ECB214B825E1B3EA00216308 /* TakePicture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TakePicture.swift; sourceTree = "<group>"; };
+		ECE7121C25E3EDB500960951 /* Record.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Record.swift; sourceTree = "<group>"; };
 		F4FF95D5245B92E700C19C63 /* Core-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Core-Bridging-Header.h"; sourceTree = "<group>"; };
 		F4FF95D6245B92E800C19C63 /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -70,6 +72,7 @@
 		58B511D21A9E6C8500147676 = {
 			isa = PBXGroup;
 			children = (
+				ECE7121C25E3EDB500960951 /* Record.swift */,
 				ECB214B825E1B3EA00216308 /* TakePicture.swift */,
 				EC075F1625DC88460045FEE8 /* ImageType.swift */,
 				EC07DC3825D373BF00B25377 /* WhiteBalanceSettings.swift */,
@@ -158,6 +161,7 @@
 				EC31AD9225D2E00B00892A6A /* CameraUtils.swift in Sources */,
 				F4FF95D7245B92E800C19C63 /* Core.swift in Sources */,
 				EC31ACCF25D231C900892A6A /* RNCameraManager.swift in Sources */,
+				ECE7121D25E3EDB500960951 /* Record.swift in Sources */,
 				EC07DC3925D373BF00B25377 /* WhiteBalanceSettings.swift in Sources */,
 				EC075F1725DC88460045FEE8 /* ImageType.swift in Sources */,
 				EC31AD0125D2379B00892A6A /* SensorOrientationChecker.swift in Sources */,

@@ -23,6 +23,17 @@ func generatePathInDirectory(_ directory: String, withExtension: String) -> URL?
   return directoryUrl
 }
 
+func parsePath(_ pathString: String) -> URL? {
+  // Handle string URLs
+  var path = URL(string: pathString)
+  if (path == nil) {
+    // Handle file system paths
+    path = URL(fileURLWithPath: pathString)
+  }
+  
+  return path
+}
+
 var cacheDirectoryPath: String {
   get { return NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true)[0] }
 }

@@ -4,6 +4,7 @@ import Foundation
 class RNCameraManager : RCTViewManager {
   static let VIEW_NOT_FOUND_ERROR_CODE = "E_RNCAMERA_VIEW_NOT_FOUND"
   static let TAKE_PICTURE_FAILED_CODE = "E_IMAGE_CAPTURE_FAILED"
+  static let RECORD_FAILED_CODE = "E_RECORDING_FAILED"
   
   override class func requiresMainQueueSetup() -> Bool {
     return true
@@ -13,7 +14,8 @@ class RNCameraManager : RCTViewManager {
     return RNCamera()
   }
   
-  @objc func takePicture(
+  @objc(takePicture:options:resolve:reject:)
+  func takePicture(
     _ node: NSNumber,
     options: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
@@ -49,6 +51,29 @@ class RNCameraManager : RCTViewManager {
       }
     }
     #endif
+  }
+  
+  @objc(record:options:resolve:reject:)
+  func record(
+    _ node: NSNumber,
+    options: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    reject: @escaping RCTPromiseRejectBlock
+  ) {
+    #if TARGET_IPHONE_SIMULATOR
+    reject(RNCameraManager.RECORD_FAILED_CODE, "Video recording is not supported on a simulator.", nil)
+    return
+    #endif
+    
+    guard let view = findView(node, reject: reject) else { return }
+    
+    let recordOptions: RecordOptions
+    do {
+      try recordOptions = parseRecordOptions(options)
+    } catch {
+      reject(RNCameraManager.RECORD_FAILED_CODE, "Invalid record options: \(error.localizedDescription)", error)
+      return
+    }
   }
   
   private func findView(_ reactTag: NSNumber, reject: RCTPromiseRejectBlock) -> RNCamera? {

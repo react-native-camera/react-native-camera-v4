@@ -43,18 +43,13 @@ func parseTakePictureOptions(_ options: NSDictionary) throws -> TakePictureOptio
   if let orientationOption = options["orientation"] as? Int {
     orientation = AVCaptureVideoOrientation.init(rawValue: orientationOption)
     if (orientation == nil) {
-      throw InvalidTakePictureOptionsError.runtimeError("takePciture orientation option is wrong, unrecognized AVCaptureDeviceOrientation \(orientationOption)")
+      throw InvalidTakePictureOptionsError.runtimeError("takePicture orientation option is wrong, unrecognized AVCaptureDeviceOrientation \(orientationOption)")
     }
   }
   
   var path: URL?
   if let pathOption = options["path"] as? String {
-    // Handle string URLs
-    path = URL(string: pathOption)
-    if (path == nil) {
-      // Handle file system paths
-      path = URL(fileURLWithPath: pathOption)
-    }
+    path = parsePath(pathOption)
     if (path == nil) {
       throw InvalidTakePictureOptionsError.runtimeError("Could not parse \(pathOption) as an URL. You must provide an already valid URL or a file system path")
     }

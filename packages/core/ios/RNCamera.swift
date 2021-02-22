@@ -50,6 +50,8 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   private var pinchGestureRecognizer: UIPinchGestureRecognizer?
   private var focusDepth: Float?
   private var deviceOrientation: UIInterfaceOrientation?
+  private var videoStabilizationMode: AVCaptureVideoStabilizationMode = .auto
+  private var videoCodecType: AVVideoCodecType?
   
   
   // MARK: React Events
@@ -298,6 +300,14 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   @objc func setFocusDepth(_ focusDepth: NSNumber) {
     self.focusDepth = Float(exactly: focusDepth)
     updateFocusDepth()
+  }
+  
+  @objc func setVideoStabilizationMode(_ value: NSInteger) {
+    guard let mode = AVCaptureVideoStabilizationMode(rawValue: value) else {
+      rctLogWarn("Video stabilization mode \(value) is not a valid AVCaptureVideoStabilizationMode value")
+      return
+    }
+    videoStabilizationMode = mode
   }
   
   
@@ -591,6 +601,202 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     }
   }
   
+  func record(
+    _ options: RecordOptions,
+    completion: (Error?) -> Void
+  ) {
+    guard let videoInput = videoCaptureDeviceInput else {
+      completion(RecordError.runtimeError("No video capture device input"))
+      return
+    }
+    
+    if (!session.isRunning) {
+      completion(RecordError.runtimeError("Camera session is not running"))
+      return
+    }
+    
+    guard let orientation = options.orientation ?? convertToAVCaptureVideoOrientation(deviceOrientation) else {
+      completion(RecordError.runtimeError("Unable to determine orientation"))
+      return
+    }
+    
+    if let output = movieFileOutput {
+      completion(RecordError.runtimeError("A recording session is already running"))
+      return
+    }
+    
+    // some operations will change our config
+    // so we batch config updates, even if inner calls
+    // might also call this, only the outermost commit will take effect
+    // making the camera changes much faster.
+    session.beginConfiguration()
+    
+    guard let movieFileOutput = setupMovieFileCapture() else {
+      session.commitConfiguration()
+      completion(RecordError.runtimeError("Unable to initiate movie file output"))
+      return
+    }
+
+    // video preset will be cleanedup/restarted once capture is done
+    // with a camera cleanup call
+    if (session.sessionPreset != options.quality) {
+      updateSessionPreset(options.quality, sessionIsAlreadyBeingConfigured: true)
+    }
+    
+    guard let connection = movieFileOutput.connection(with: .video) else {
+      session.commitConfiguration()
+      completion(RecordError.runtimeError("Unable to create record connection from output"))
+      return
+    }
+
+    if (connection.isVideoStabilizationSupported) {
+      connection.preferredVideoStabilizationMode = videoStabilizationMode
+    }
+    connection.videoOrientation = orientation
+    
+    let recordAudio = !options.mute
+    
+    // sound recording connection, we can easily turn it on/off without manipulating inputs, this prevents flickering.
+    // note that mute will also be set to true
+    // if captureAudio is set to false on the JS side.
+    // Check the property anyways just in case it is manipulated
+    // with setNativeProps
+    if (recordAudio) {
+      captureAudio = true
+      initializeAudioCaptureSessionInput()
+    }
+    
+    guard let audioConnection = movieFileOutput.connection(with: .audio) else {
+      session.commitConfiguration()
+      completion(RecordError.runtimeError("Unable to create audio connection to record"))
+      return
+    }
+    
+    audioConnection.isEnabled = recordAudio
+    
+    // session preset might affect this, so we run this code
+    // also in the session queue
+    sessionQueue.async { [self] in
+      if let maxDuration = options.maxDuration {
+        movieFileOutput.maxRecordedDuration = CMTime(seconds: maxDuration, preferredTimescale: 30)
+      }
+      
+      if let maxFileSize = options.maxFileSize {
+        movieFileOutput.maxRecordedFileSize = maxFileSize
+      }
+      
+      
+      if let fps = options.fps {
+        var selectedFormat: AVCaptureDevice.Format? = nil
+        
+        let desiredFps = Double(fps)
+        let device = videoInput.device
+        let activeWidth: Int32
+        if #available(iOS 13.0, *) {
+          activeWidth = device.activeFormat.formatDescription.dimensions.width
+        } else {
+          activeWidth = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription).width
+        }
+        
+        var maxWidth: Int32 = 0
+        
+        device.formats.forEach { format in
+          let formatWidth: Int32
+          if #available(iOS 13.0, *) {
+            formatWidth = format.formatDescription.dimensions.width
+          } else {
+            formatWidth = CMVideoFormatDescriptionGetDimensions(format.formatDescription).width
+          }
+          if (formatWidth != activeWidth || formatWidth < maxWidth) {
+            return
+          }
+          format.videoSupportedFrameRateRanges.forEach { range in
+            if (range.minFrameRate <= desiredFps && desiredFps <= range.maxFrameRate) {
+              selectedFormat = format
+              maxWidth = formatWidth
+            }
+          }
+        }
+        
+        if let formatToSet = selectedFormat {
+          do {
+            try device.lockForConfiguration()
+            device.activeFormat = formatToSet
+            device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(desiredFps))
+            device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(desiredFps))
+            device.unlockForConfiguration()
+          } catch {
+            rctLogWarn("Unable to set FPS, error locking device configuration: \(error.localizedDescription)")
+          }
+        } else {
+          rctLogWarn("Unable to find suitable device format for FPS \(desiredFps)")
+        }
+      }
+      
+      if let codec = options.codec {
+        if (movieFileOutput.availableVideoCodecTypes.contains(codec)) {
+          videoCodecType = codec
+          let outputSettings: [String: Any]
+          outputSettings[AVVideoCodecKey] = codec
+          if let bitrate = options.videoBitrate {
+            outputSettings[AVVideoCompressionPropertiesKey] = [
+              AVVideoAverageBitRateKey: bitrate
+            ]
+          }
+          movieFileOutput.setOutputSettings(outputSettings, for: connection)
+        } else {
+          rctLogWarn("Video codec \(codec) is not in record session")
+        }
+      }
+      
+      guard let path = options.path ?? generatePathInDirectory(cacheDirectoryPath, withExtension: ".mov") else {
+        session.commitConfiguration()
+        completion(RecordError.runtimeError("Unable to determine path to record to"))
+        return
+      }
+      
+      if options.mirrorVideo {
+        if connection.isVideoMirroringSupported {
+          connection.automaticallyAdjustsVideoMirroring = false
+          connection.isVideoMirrored = true
+        } else {
+          rctLogWarn("Video mirroring is not supported for this recording session")
+        }
+      }
+      
+      // finally, commit our config changes before starting to record
+      session.commitConfiguration()
+      
+      // and update flash in case it was turned off automatically
+      // due to session/preset changes
+      updateFlashMode()
+      
+      // we will use this flag to stop recording
+      // if it was requested to stop before it could even start
+      recordRequested = true
+      
+      // after everything is set, start recording with a tiny delay
+      // to ensure the camera already has focus and exposure set.
+      sessionQueue.asyncAfter(deadline: DispatchTime.now() + .milliseconds(500)) {
+        // our session might have stopped in between the timeout
+        // so make sure it is still valid, otherwise, error and cleanup
+        guard let output = self.movieFileOutput,
+              let input = self.videoCaptureDeviceInput,
+              self.recordRequested else {
+          completion(RecordError.runtimeError("Unable to start recording: cancelled or unomounted"))
+          cleanupCamera()
+          recordRequested = false
+          return
+        }
+        
+        movieFileOutput.startRecording(to: path, recordingDelegate: self)
+        
+        recordRequested = false
+        
+      }
+    }
+  }
+  
   // MARK: Camera Lifecycle
   private func initialize() {
     sensorOrientationChecker.delegate = self
@@ -648,20 +854,9 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
         self.stillImageOutput = stillImageOutput
       }
       
-      setupMovieFileCapture()
-      
       sessionInterrupted = false
       session.startRunning()
       notifyReady()
-    }
-  }
-  
-  private func setupMovieFileCapture() {
-    let output = AVCaptureMovieFileOutput()
-    
-    if (session.canAddOutput(output)) {
-      session.addOutput(output)
-      movieFileOutput = output
     }
   }
   
@@ -744,7 +939,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     // Initializes audio capture device
     // Note: Ensure this is called within a a session configuration block
     
-    if audioCaptureDeviceInput == nil { return }
+    if audioCaptureDeviceInput != nil { return }
     
     // if we failed to get the audio device, fire our interrupted event
     let notifyFailed = { [self] in
@@ -1149,7 +1344,6 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     }
   }
 
-  
   private func updateAutoFocusPointOfInterest() {
     guard let device = videoCaptureDeviceInput?.device else { return }
     
@@ -1374,6 +1568,53 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
         "isDoubleTap": isDouble,
         "touchOrigin": ["x": location.x, "y": location.y]
       ])
+    }
+  }
+  
+  private func setupMovieFileCapture() -> AVCaptureMovieFileOutput? {
+    let output = AVCaptureMovieFileOutput()
+    
+    if (session.canAddOutput(output)) {
+      session.addOutput(output)
+      movieFileOutput = output
+      return output
+    }
+    
+    return nil
+  }
+  
+  private func updateSessionPreset(_ preset: AVCaptureSession.Preset, sessionIsAlreadyBeingConfigured: Bool) {
+    #if TARGET_IPHONE_SIMULATOR
+    return
+    #endif
+    
+    sessionQueue.async { [self] in
+      if (!session.canSetSessionPreset(preset)) {
+        rctLogWarn("The current camera session does not support the preset \(preset), not chaning")
+        return
+      }
+      
+      if (!sessionIsAlreadyBeingConfigured) {
+        session.beginConfiguration()
+      }
+      
+      session.sessionPreset = preset
+      
+      if (!sessionIsAlreadyBeingConfigured) {
+        session.commitConfiguration()
+        updateFlashMode()
+        updateZoom()
+      }
+    }
+  }
+  
+  private func cleanupCamera() {
+    videoCodecType = nil
+    captureAudio = false
+    isRecordingInterrupted = false
+    let preset = getDefaultPreset()
+    if preset != session.sessionPreset {
+      updateSessionPreset(preset, sessionIsAlreadyBeingConfigured: false)
     }
   }
 }
