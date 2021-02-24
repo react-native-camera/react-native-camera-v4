@@ -14,6 +14,20 @@ struct RecordOptions {
   let mirrorVideo: Bool
 }
 
+struct PartialRecordResult {
+  let viewTag: NSNumber
+  let videoOrientation: AVCaptureVideoOrientation
+  let deviceOrientation: UIInterfaceOrientation
+}
+
+struct RecordResult {
+  var uri: String
+  let videoOrientation: AVCaptureVideoOrientation
+  let deviceOrientation: UIInterfaceOrientation
+  let isRecordingInterrupted: Bool
+  let codec: AVVideoCodecType?
+}
+
 enum RecordError: Error {
   case runtimeError(String)
 }
@@ -70,4 +84,19 @@ func parseRecordOptions(_ options: NSDictionary) throws -> RecordOptions {
     path: path,
     mirrorVideo: options["mirrorVideo"] as? Bool ?? false
   )
+}
+
+func recordResultToNSDictionary(_ result: RecordResult) -> NSDictionary {
+  let dictionary = NSMutableDictionary()
+  
+  dictionary["uri"] = result.uri
+  dictionary["videoOrientation"] = result.videoOrientation.rawValue
+  dictionary["deviceOrientation"] = result.deviceOrientation.rawValue
+  dictionary["isRecordingInterrupted"] = result.isRecordingInterrupted
+  
+  if let codec = result.codec {
+    dictionary["codec"] = codec
+  }
+  
+  return dictionary
 }

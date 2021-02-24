@@ -1,18 +1,22 @@
 import Foundation
 
 @objc(RNCameraManager)
-class RNCameraManager : RCTViewManager {
+class RNCameraManager : RCTViewManager, RNCameraDelegate {
   static let VIEW_NOT_FOUND_ERROR_CODE = "E_RNCAMERA_VIEW_NOT_FOUND"
   static let TAKE_PICTURE_FAILED_CODE = "E_IMAGE_CAPTURE_FAILED"
   static let RECORD_FAILED_CODE = "E_RECORDING_FAILED"
+  
   
   override class func requiresMainQueueSetup() -> Bool {
     return true
   }
 
   override func view() -> UIView! {
-    return RNCamera()
+    let view = RNCamera()
+    view.delegate = self
+    return view
   }
+  
   
   @objc(takePicture:options:resolve:reject:)
   func takePicture(
@@ -66,6 +70,11 @@ class RNCameraManager : RCTViewManager {
     #endif
     
     guard let view = findView(node, reject: reject) else { return }
+
+    if recordPromises.keys.contains(node) {
+      reject(RNCameraManager.RECORD_FAILED_CODE, "View \(node) already has an ongoing recording", nil)
+      return
+    }
     
     let recordOptions: RecordOptions
     do {
@@ -74,7 +83,38 @@ class RNCameraManager : RCTViewManager {
       reject(RNCameraManager.RECORD_FAILED_CODE, "Invalid record options: \(error.localizedDescription)", error)
       return
     }
+    
+    view.record(recordOptions, viewTag: node) { [self] errorOrNil in
+      if let error = errorOrNil {
+        reject(RNCameraManager.RECORD_FAILED_CODE, error.localizedDescription, error)
+        return
+      }
+      
+      recordPromises[node] = (resolve, reject)
+    }
   }
+  
+  
+  func recorded(viewTag: NSNumber, resultOrNil: RecordResult?, errorOrNil: Error?) {
+    guard let (resolve, reject) = recordPromises[viewTag] else {
+      rctLogWarn("View with tag \(viewTag) reported a record result but its promise was not found")
+      return
+    }
+    
+    recordPromises.removeValue(forKey: viewTag)
+    
+    if let error = errorOrNil {
+      reject(RNCameraManager.RECORD_FAILED_CODE, error.localizedDescription, error)
+    } else if let result = resultOrNil {
+      resolve(recordResultToNSDictionary(result))
+    } else {
+      reject(RNCameraManager.RECORD_FAILED_CODE, "Empty record result with no error", nil)
+    }
+  }
+  
+  
+  private var recordPromises = Dictionary<NSNumber, (RCTPromiseResolveBlock, RCTPromiseRejectBlock)>()
+  
   
   private func findView(_ reactTag: NSNumber, reject: RCTPromiseRejectBlock) -> RNCamera? {
     guard let view = bridge.uiManager.view(forReactTag: reactTag) else {

@@ -121,3 +121,52 @@ func scaleImage(_ image: UIImage, toWidth: Int) -> UIImage? {
   
   return UIImage(cgImage: newCgImage, scale: 1.0, orientation: newImage.imageOrientation)
 }
+
+func mirrorVideo (_ url: URL, completion: (URL?, Error?) -> Void) {
+  let videoAsset = AVAsset(url: url)
+  guard let videoTrack = videoAsset.tracks(withMediaType: .video).first else {
+    completion(nil, RecordError.runtimeError("Could not find valid video track while mirroring video"))
+    return
+  }
+  
+  let composition = AVMutableComposition()
+  composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+  let videoComposition = AVMutableVideoComposition()
+  videoComposition.renderSize = CGSize(width: videoTrack.naturalSize.width, height: videoTrack.naturalSize.height)
+  videoComposition.frameDuration = videoTrack.minFrameDuration
+  
+  let transformer = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+  let instruction = AVMutableVideoCompositionInstruction()
+  instruction.timeRange = CMTimeRange(start: .zero, duration: CMTime(seconds: 60, preferredTimescale: 30))
+  
+  let transform = CGAffineTransform(scaleX: -1.0, y: -1.0)
+    .translatedBy(x: -videoTrack.naturalSize.width, y: 0)
+    .rotated(by: CGFloat(.pi / 2.0))
+    .translatedBy(x: 0.0, y: -videoTrack.naturalSize.height)
+  
+  transformer.setTransform(transform, at: .zero)
+  instruction.layerInstructions = [transformer]
+  videoComposition.instructions = [instruction]
+  
+  //Export
+  guard let outputUrl = generatePathInDirectory(cacheDirectoryPath.appending("CameraFlip"), withExtension: ".mp4") else {
+    completion(nil, RecordError.runtimeError("Could not find path to save mirror of recorded video"))
+    return
+  }
+  
+  guard let exportSession = AVAssetExportSession(asset: videoAsset, presetName: AVAssetExportPreset640x480) else {
+    completion(nil, RecordError.runtimeError("Could not initialize export session for mirror of recorded video"))
+    return
+  }
+  exportSession.outputURL = outputUrl
+  exportSession.outputFileType = .mp4
+
+  exportSession.exportAsynchronously {
+    if let error = exportSession.error {
+      completion(nil, error)
+      return
+    }
+
+    completion(outputUrl, nil)
+  }
+}

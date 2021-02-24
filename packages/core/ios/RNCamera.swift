@@ -3,10 +3,10 @@ import AVFoundation
 import MobileCoreServices
 
 protocol RNCameraDelegate {
-  func onTouch(data: NSDictionary)
+  func recorded(viewTag: NSNumber, resultOrNil: RecordResult?, errorOrNil: Error?)
 }
 
-class RNCamera : UIView, SensorOrientationCheckerDelegate {
+class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRecordingDelegate {
   
   // MARK: Immutable Variables
   let sessionQueue = dispatch_queue_serial_t(label: "cameraQueue")
@@ -26,13 +26,13 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   var isExposedOnPoint = false
   var invertImageData = true
   var isRecordingInterrupted = false
-  var keepAudioSession = false
   var captureAudio = false
   
   
   // MARK: Internal Variables
   private var recordRequested = false
   private var sessionInterrupted = false
+  private var keepAudioSession = false
   private var exposureIsoMin: Float?
   private var exposureIsoMax: Float?
   private var maxZoom: CGFloat = 0
@@ -51,7 +51,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   private var focusDepth: Float?
   private var deviceOrientation: UIInterfaceOrientation?
   private var videoStabilizationMode: AVCaptureVideoStabilizationMode = .auto
-  private var videoCodecType: AVVideoCodecType?
+  private var lastRecordResult: PartialRecordResult?
   
   
   // MARK: React Events
@@ -308,6 +308,10 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       return
     }
     videoStabilizationMode = mode
+  }
+  
+  @objc func setKeepAudioSession(_ value: Bool) {
+    keepAudioSession = value
   }
   
   
@@ -603,7 +607,8 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   
   func record(
     _ options: RecordOptions,
-    completion: (Error?) -> Void
+    viewTag: NSNumber,
+    completion: @escaping (Error?) -> Void
   ) {
     guard let videoInput = videoCaptureDeviceInput else {
       completion(RecordError.runtimeError("No video capture device input"))
@@ -620,7 +625,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       return
     }
     
-    if let output = movieFileOutput {
+    if movieFileOutput != nil {
       completion(RecordError.runtimeError("A recording session is already running"))
       return
     }
@@ -735,8 +740,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       
       if let codec = options.codec {
         if (movieFileOutput.availableVideoCodecTypes.contains(codec)) {
-          videoCodecType = codec
-          let outputSettings: [String: Any]
+          var outputSettings = [String: Any]()
           outputSettings[AVVideoCodecKey] = codec
           if let bitrate = options.videoBitrate {
             outputSettings[AVVideoCompressionPropertiesKey] = [
@@ -764,6 +768,12 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
         }
       }
       
+      lastRecordResult = PartialRecordResult(
+        viewTag: viewTag,
+        videoOrientation: orientation,
+        deviceOrientation: deviceOrientation ?? .portrait
+      )
+      
       // finally, commit our config changes before starting to record
       session.commitConfiguration()
       
@@ -780,8 +790,8 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
       sessionQueue.asyncAfter(deadline: DispatchTime.now() + .milliseconds(500)) {
         // our session might have stopped in between the timeout
         // so make sure it is still valid, otherwise, error and cleanup
-        guard let output = self.movieFileOutput,
-              let input = self.videoCaptureDeviceInput,
+        guard self.movieFileOutput != nil,
+              self.videoCaptureDeviceInput != nil,
               self.recordRequested else {
           completion(RecordError.runtimeError("Unable to start recording: cancelled or unomounted"))
           cleanupCamera()
@@ -792,10 +802,10 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
         movieFileOutput.startRecording(to: path, recordingDelegate: self)
         
         recordRequested = false
-        
       }
     }
   }
+  
   
   // MARK: Camera Lifecycle
   private func initialize() {
@@ -1209,6 +1219,48 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
     deviceOrientation = orientation
   }
   
+  func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
+    
+    guard let partialResult = lastRecordResult else {
+      rctLogWarn("Missing last partial result from record, hanging record")
+      cleanupCamera()
+      return
+    }
+    
+    if let errorHappened = error {
+      delegate?.recorded(viewTag: partialResult.viewTag, resultOrNil: nil, errorOrNil: errorHappened)
+      cleanupCamera()
+      return
+    }
+    
+    var result = RecordResult(
+      uri: outputFileURL.absoluteString,
+      videoOrientation: partialResult.videoOrientation,
+      deviceOrientation: partialResult.deviceOrientation,
+      isRecordingInterrupted: isRecordingInterrupted,
+      codec: movieFileOutput?.availableVideoCodecTypes.first
+    )
+    
+    if let firstConnection = connections.first, firstConnection.isVideoMirrored {
+      mirrorVideo(outputFileURL) { mirroredUriOrNil, mirrorErrorOrNil in
+        if let error = mirrorErrorOrNil {
+          delegate?.recorded(viewTag: partialResult.viewTag, resultOrNil: nil, errorOrNil: error)
+          return
+        }
+        
+        if let mirroredUri = mirroredUriOrNil?.absoluteString {
+          result.uri = mirroredUri
+          delegate?.recorded(viewTag: partialResult.viewTag, resultOrNil: result, errorOrNil: nil)
+        }
+      }
+      return
+    } else {
+      delegate?.recorded(viewTag: partialResult.viewTag, resultOrNil: result, errorOrNil: nil)
+    }
+    
+    cleanupCamera()
+  }
+  
   
   // MARK: Private Methods
   private func getDevice() -> AVCaptureDevice? {
@@ -1609,9 +1661,10 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate {
   }
   
   private func cleanupCamera() {
-    videoCodecType = nil
     captureAudio = false
     isRecordingInterrupted = false
+    movieFileOutput = nil
+    lastRecordResult = nil
     let preset = getDefaultPreset()
     if preset != session.sessionPreset {
       updateSessionPreset(preset, sessionIsAlreadyBeingConfigured: false)

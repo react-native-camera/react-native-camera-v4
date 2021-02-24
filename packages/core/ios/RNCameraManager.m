@@ -16,6 +16,7 @@ RCT_EXPORT_VIEW_PROPERTY(customWhiteBalance, NSDictionary)
 RCT_EXPORT_VIEW_PROPERTY(nativeZoom, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(focusDepth, NSNumber)
 RCT_EXPORT_VIEW_PROPERTY(videoStabilizationMode, NSInteger)
+RCT_EXPORT_VIEW_PROPERTY(keepAudioSession, BOOL)
 
 RCT_EXPORT_VIEW_PROPERTY(onCameraReady, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onMountError, RCTDirectEventBlock);
