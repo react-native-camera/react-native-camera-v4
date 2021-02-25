@@ -138,24 +138,6 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
     }
   }
   
-  
-  func recorded(viewTag: NSNumber, resultOrNil: RecordResult?, errorOrNil: Error?) {
-    guard let (resolve, reject) = recordPromises[viewTag] else {
-      rctLogWarn("View with tag \(viewTag) reported a record result but its promise was not found")
-      return
-    }
-    
-    recordPromises.removeValue(forKey: viewTag)
-    
-    if let error = errorOrNil {
-      reject(RNCameraManager.RECORD_FAILED_CODE, error.localizedDescription, error)
-    } else if let result = resultOrNil {
-      resolve(recordResultToNSDictionary(result))
-    } else {
-      reject(RNCameraManager.RECORD_FAILED_CODE, "Empty record result with no error", nil)
-    }
-  }
-  
   @objc(checkVideoAuthorizationStatus:reject:)
   func checkVideoAuthorizationStatus(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
     #if DEBUG
@@ -183,6 +165,24 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
     
     AVAudioSession.sharedInstance().requestRecordPermission { granted in
       resolve(granted)
+    }
+  }
+  
+  
+  func recorded(viewTag: NSNumber, resultOrNil: RecordResult?, errorOrNil: Error?) {
+    guard let (resolve, reject) = recordPromises[viewTag] else {
+      rctLogWarn("View with tag \(viewTag) reported a record result but its promise was not found")
+      return
+    }
+    
+    recordPromises.removeValue(forKey: viewTag)
+    
+    if let error = errorOrNil {
+      reject(RNCameraManager.RECORD_FAILED_CODE, error.localizedDescription, error)
+    } else if let result = resultOrNil {
+      resolve(recordResultToNSDictionary(result))
+    } else {
+      reject(RNCameraManager.RECORD_FAILED_CODE, "Empty record result with no error", nil)
     }
   }
   
