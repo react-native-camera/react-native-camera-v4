@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 
 @objc(RNCameraManager)
 class RNCameraManager : RCTViewManager, RNCameraDelegate {
@@ -94,6 +95,49 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
     }
   }
   
+  @objc(stopRecording:)
+  func stopRecording(_ node: NSNumber) {
+    guard let view = findView(node, reject: nil) else { return }
+    
+    view.stopRecording()
+  }
+  
+  @objc(pausePreview:)
+  func pausePreview(_ node: NSNumber) {
+    #if TARGET_IPHONE_SIMULATOR
+        return;
+    #endif
+    
+    guard let view = findView(node, reject: nil) else { return }
+    
+    view.pausePreview()
+  }
+  
+  @objc(resumePreview:)
+  func resumePreview(_ node: NSNumber) {
+    #if TARGET_IPHONE_SIMULATOR
+        return;
+    #endif
+    
+    guard let view = findView(node, reject: nil) else { return }
+    
+    view.resumePreview()
+  }
+  
+  @objc(checkDeviceAuthorizationStatus:reject:)
+  func checkDeviceAuthorizationStatus(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    AVCaptureDevice.requestAccess(for: .video) { videoGranted in
+      if (!videoGranted) {
+        resolve(videoGranted)
+        return
+      }
+      
+      AVCaptureDevice.requestAccess(for: .audio) { audioGranted in
+        resolve(audioGranted)
+      }
+    }
+  }
+  
   
   func recorded(viewTag: NSNumber, resultOrNil: RecordResult?, errorOrNil: Error?) {
     guard let (resolve, reject) = recordPromises[viewTag] else {
@@ -112,18 +156,52 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
     }
   }
   
+  @objc(checkVideoAuthorizationStatus:reject:)
+  func checkVideoAuthorizationStatus(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    #if DEBUG
+    if Bundle.main.object(forInfoDictionaryKey: "NSCameraUsageDescription") != nil {
+      rctLogWarn("Checking video permissions without having key 'NSCameraUsageDescription' defined in your Info.plist. If you do not add it your app will crash when being built in release mode. You will have to add it to your Info.plist file, otherwise RNCamera is not allowed to use the camera.  You can learn more about adding permissions here: https://stackoverflow.com/a/38498347/4202031")
+      resolve(false)
+      return
+    }
+    #endif
+    
+    AVCaptureDevice.requestAccess(for: .video) { granted in
+      resolve(granted)
+    }
+  }
+  
+  @objc(checkRecordAudioAuthorizationStatus:reject:)
+  func checkRecordAudioAuthorizationStatus(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    #if DEBUG
+    if Bundle.main.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription") != nil {
+      rctLogWarn("Checking audio permissions without having key 'NSMicrophoneUsageDescription' defined in your Info.plist. Audio Recording for your video files is therefore disabled. If you do not need audio on your recordings is is recommended to set the 'captureAudio' property on your component instance to 'false', otherwise you will have to add the key 'NSMicrophoneUsageDescription' to your Info.plist. If you do not your app will crash when being built in release mode. You can learn more about adding permissions here: https://stackoverflow.com/a/38498347/4202031")
+      resolve(false)
+      return
+    }
+    #endif
+    
+    AVAudioSession.sharedInstance().requestRecordPermission { granted in
+      resolve(granted)
+    }
+  }
+  
   
   private var recordPromises = Dictionary<NSNumber, (RCTPromiseResolveBlock, RCTPromiseRejectBlock)>()
   
   
-  private func findView(_ reactTag: NSNumber, reject: RCTPromiseRejectBlock) -> RNCamera? {
+  private func findView(_ reactTag: NSNumber, reject: RCTPromiseRejectBlock?) -> RNCamera? {
     guard let view = bridge.uiManager.view(forReactTag: reactTag) else {
-      reject(RNCameraManager.VIEW_NOT_FOUND_ERROR_CODE, "Could not find view for tag \(reactTag)", nil)
+      if let rejectPromise = reject {
+        rejectPromise(RNCameraManager.VIEW_NOT_FOUND_ERROR_CODE, "Could not find view for tag \(reactTag)", nil)
+      }
       return nil
     }
     
     guard let camera = view as? RNCamera else {
-      reject(RNCameraManager.VIEW_NOT_FOUND_ERROR_CODE, "View for tag \(reactTag) is not a RNCamera view", nil)
+      if let rejectPromise = reject {
+        rejectPromise(RNCameraManager.VIEW_NOT_FOUND_ERROR_CODE, "View for tag \(reactTag) is not a RNCamera view", nil)
+      }
       return nil
     }
     

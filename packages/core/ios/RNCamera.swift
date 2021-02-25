@@ -63,6 +63,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRe
   @objc var onSubjectAreaChanged: RCTDirectEventBlock?
   @objc var onPictureTaken: RCTDirectEventBlock?
   @objc var onPictureSaved: RCTDirectEventBlock?
+  @objc var onRecordingEnd: RCTDirectEventBlock?
   
   
   // MARK: Computed Properties
@@ -804,6 +805,31 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRe
         recordRequested = false
       }
     }
+  }
+  
+  func stopRecording() {
+    sessionQueue.async { [self] in
+      if let output = movieFileOutput {
+        output.stopRecording()
+        if let handler = onRecordingEnd {
+          handler(nil)
+        }
+      } else {
+        if (recordRequested) {
+          recordRequested = false
+        } else {
+          rctLogWarn("Video is not recording.")
+        }
+      }
+    }
+  }
+  
+  func pausePreview() {
+    previewLayer.connection?.isEnabled = false
+  }
+  
+  func resumePreview() {
+    previewLayer.connection?.isEnabled = true
   }
   
   
