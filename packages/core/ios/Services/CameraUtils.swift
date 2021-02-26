@@ -122,7 +122,7 @@ func scaleImage(_ image: UIImage, toWidth: Int) -> UIImage? {
   return UIImage(cgImage: newCgImage, scale: 1.0, orientation: newImage.imageOrientation)
 }
 
-func mirrorVideo (_ url: URL, completion: (URL?, Error?) -> Void) {
+func mirrorVideo (_ url: URL, completion: @escaping (URL?, Error?) -> Void) {
   let videoAsset = AVAsset(url: url)
   guard let videoTrack = videoAsset.tracks(withMediaType: .video).first else {
     completion(nil, RecordError.runtimeError("Could not find valid video track while mirroring video"))

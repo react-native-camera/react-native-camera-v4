@@ -7,6 +7,18 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
   static let TAKE_PICTURE_FAILED_CODE = "E_IMAGE_CAPTURE_FAILED"
   static let RECORD_FAILED_CODE = "E_RECORDING_FAILED"
   
+  static let presets: [AVCaptureSession.Preset] = [
+    .hd4K3840x2160,
+    .hd1920x1080,
+    .hd1280x720,
+    .vga640x480,
+    .cif352x288,
+    .low,
+    .medium,
+    .high,
+    .photo
+  ]
+  
   
   override class func requiresMainQueueSetup() -> Bool {
     return true
@@ -168,6 +180,57 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
     }
   }
   
+  @objc(getAvailablePictureSizes:reactTag:resolve:reject:)
+  func getAvailablePictureSizes(_ ratio: NSString, reactTag: NSNumber, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    resolve(RNCameraManager.presets.map { $0.rawValue })
+  }
+  
+  @objc(isRecording:resolve:reject:)
+  func isRecording(_ node: NSNumber, resolve: RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+    guard let view = findView(node, reject: reject) else { return }
+    
+    resolve(view.isRecording)
+  }
+  
+  @objc(getCameraIds:resolve:reject:)
+  func getCameraIds(_ node: NSNumber, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    #if TARGET_IPHONE_SIMULATOR
+    resolve([])
+    return
+    #endif
+    
+    var deviceTypes: [AVCaptureDevice.DeviceType] = [
+      .builtInWideAngleCamera,
+      .builtInTelephotoCamera
+    ]
+    
+    if #available(iOS 13.0, *) {
+      deviceTypes.append(.builtInUltraWideCamera)
+    }
+    
+    let captureDevice = AVCaptureDevice.DiscoverySession(deviceTypes: deviceTypes, mediaType: .video, position: .unspecified)
+    
+    let result: NSArray = []
+    
+    captureDevice.devices.forEach { camera in
+      // exclude virtual devices. We currently cannot use
+      // any virtual device feature like auto switching or
+      // depth of field detetion anyways.
+      if #available(iOS 13.0, *) {
+        if (camera.isVirtualDevice) {
+          return
+        }
+        
+        result.adding([
+          "id": camera.uniqueID,
+          "deviceType": camera.deviceType,
+          "type": camera.position
+        ])
+      }
+    }
+    
+    resolve(result)
+  }
   
   func recorded(viewTag: NSNumber, resultOrNil: RecordResult?, errorOrNil: Error?) {
     guard let (resolve, reject) = recordPromises[viewTag] else {

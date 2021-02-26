@@ -17,6 +17,7 @@ RCT_EXPORT_VIEW_PROPERTY(nativeZoom, BOOL);
 RCT_EXPORT_VIEW_PROPERTY(focusDepth, NSNumber);
 RCT_EXPORT_VIEW_PROPERTY(videoStabilizationMode, NSInteger);
 RCT_EXPORT_VIEW_PROPERTY(keepAudioSession, BOOL);
+RCT_EXPORT_VIEW_PROPERTY(pictureSize, NSString)
 
 RCT_EXPORT_VIEW_PROPERTY(onCameraReady, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onMountError, RCTDirectEventBlock);
@@ -45,5 +46,15 @@ RCT_EXTERN_METHOD(checkVideoAuthorizationStatus:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject);
 RCT_EXTERN_METHOD(checkRecordAudioAuthorizationStatus:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject);
+RCT_EXTERN_METHOD(getAvailablePictureSizes: (NSString *)ratio
+                 reactTag:(nonnull NSNumber *)reactTag
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject);
+RCT_EXTERN_METHOD(isRecording: (nonnull NSNumber *)node
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject);
+RCT_EXTERN_METHOD(getCameraIds: (nonnull NSNumber *)node
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject);
 
 @end

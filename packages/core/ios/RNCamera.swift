@@ -21,7 +21,6 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRe
   var audioCaptureDeviceInput: AVCaptureDeviceInput?
   var movieFileOutput: AVCaptureMovieFileOutput?
   var stillImageOutput: AVCaptureStillImageOutput?
-  var pictureSize: AVCaptureSession.Preset?
   var isFocusedOnPoint = false
   var isExposedOnPoint = false
   var invertImageData = true
@@ -38,6 +37,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRe
   private var maxZoom: CGFloat = 0
   private var zoom: CGFloat = 0
   private var cameraId: String?
+  private var pictureSize: AVCaptureSession.Preset?
   private var autoFocus: AVCaptureDevice.FocusMode = .continuousAutoFocus
   private var autoExposure = false
   private var presetCamera = AVCaptureDevice.Position.unspecified
@@ -313,6 +313,10 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRe
   
   @objc func setKeepAudioSession(_ value: Bool) {
     keepAudioSession = value
+  }
+  
+  @objc func setPictureSize(_ value: NSString) {
+    pictureSize = AVCaptureSession.Preset(rawValue: value as String)
   }
   
   
