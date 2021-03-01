@@ -455,7 +455,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRe
       var imageType: ImageType = .jpeg
       var imageTypeIdentifier = kUTTypeJPEG
       var imageExtension = ".jpg"
-      if (options.imageType == "png") {
+      if (options.imageType == .png) {
         imageType = .png
         imageTypeIdentifier = kUTTypePNG
         imageExtension = ".png"
@@ -1272,7 +1272,7 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRe
     )
     
     if let firstConnection = connections.first, firstConnection.isVideoMirrored {
-      mirrorVideo(outputFileURL) { mirroredUriOrNil, mirrorErrorOrNil in
+      mirrorVideo(outputFileURL) { [self] mirroredUriOrNil, mirrorErrorOrNil in
         if let error = mirrorErrorOrNil {
           delegate?.recorded(viewTag: partialResult.viewTag, resultOrNil: nil, errorOrNil: error)
           return

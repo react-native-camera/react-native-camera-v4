@@ -14,7 +14,7 @@ struct TakePictureOptions {
   let width: Int?
   let path: URL?
   let orientation: AVCaptureVideoOrientation?
-  let imageType: String?
+  let imageType: ImageType?
   let quality: Float?
   let id: String?
 }
@@ -39,7 +39,6 @@ enum TakePictureError: Error {
 
 func parseTakePictureOptions(_ options: NSDictionary) throws -> TakePictureOptions {
   var orientation: AVCaptureVideoOrientation?
-  
   if let orientationOption = options["orientation"] as? Int {
     orientation = AVCaptureVideoOrientation.init(rawValue: orientationOption)
     if (orientation == nil) {
@@ -55,11 +54,19 @@ func parseTakePictureOptions(_ options: NSDictionary) throws -> TakePictureOptio
     }
   }
   
+  var imageType: ImageType?
+  if let imageTypeOption = options["imageType"] as? Int {
+    imageType = ImageType(rawValue: imageTypeOption)
+    if (imageType == nil) {
+      throw InvalidTakePictureOptionsError.runtimeError("takePicture imageType option is wrong, unrecognized ImageType \(imageTypeOption)")
+    }
+  }
+  
   var result = TakePictureOptions(
     width: options["width"] as? Int,
     path: path,
     orientation: orientation,
-    imageType: options["imageType"] as? String,
+    imageType: imageType,
     quality: options["quality"] as? Float,
     id: options["id"] as? String
   )

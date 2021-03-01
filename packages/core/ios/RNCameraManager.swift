@@ -18,7 +18,69 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
     .high,
     .photo
   ]
+
   
+  override func constantsToExport() -> [AnyHashable : Any]! {
+    let videoCodecTypes: [String: String]
+    if #available(iOS 11, *) {
+      videoCodecTypes = [
+        "H264": AVVideoCodecType.h264.rawValue,
+        "HVEC": AVVideoCodecType.hevc.rawValue,
+        "JPEG": AVVideoCodecType.jpeg.rawValue,
+        "AppleProRes422": AVVideoCodecType.proRes422.rawValue,
+        "AppleProRes4444": AVVideoCodecType.proRes4444.rawValue
+      ]
+    } else {
+      videoCodecTypes = [
+        "H264": AVVideoCodecH264,
+        "JPEG": AVVideoCodecJPEG
+      ]
+    }
+    
+    return [
+      "Type": [
+        "back": AVCaptureDevice.Position.back.rawValue,
+        "front": AVCaptureDevice.Position.front.rawValue
+      ],
+      "FlashMode": [
+        "off": AVCaptureDevice.FlashMode.off.rawValue,
+        "on": AVCaptureDevice.FlashMode.on.rawValue,
+        "auto": AVCaptureDevice.FlashMode.auto.rawValue
+      ],
+      "AutoFocus": [
+        "on": AVCaptureDevice.FocusMode.continuousAutoFocus.rawValue,
+        "off": AVCaptureDevice.FocusMode.autoFocus.rawValue,
+      ],
+      "WhiteBalance": [
+        "auto": AVCaptureDevice.WhiteBalanceMode.continuousAutoWhiteBalance.rawValue,
+      ],
+      "VideoQuality": [
+        "2160p": AVCaptureSession.Preset.hd4K3840x2160.rawValue,
+        "1080p": AVCaptureSession.Preset.hd1920x1080.rawValue,
+        "720p": AVCaptureSession.Preset.hd1280x720.rawValue,
+        "480p": AVCaptureSession.Preset.vga640x480.rawValue,
+        "4:3": AVCaptureSession.Preset.vga640x480.rawValue,
+        "288p": AVCaptureSession.Preset.cif352x288.rawValue
+      ],
+      "ImageType": [
+        "jpeg": ImageType.jpeg.rawValue,
+        "png": ImageType.png.rawValue
+      ],
+      "Orientation": [
+        "landscapeLeft": AVCaptureVideoOrientation.landscapeLeft.rawValue,
+        "landscapeRight": AVCaptureVideoOrientation.landscapeRight.rawValue,
+        "portrait": AVCaptureVideoOrientation.portrait.rawValue,
+        "portraitUpsideDown": AVCaptureVideoOrientation.portraitUpsideDown.rawValue
+      ],
+      "VideoCodec": videoCodecTypes,
+      "VideoStabilization": [
+        "off": AVCaptureVideoStabilizationMode.off.rawValue,
+        "auto": AVCaptureVideoStabilizationMode.auto.rawValue,
+        "standard": AVCaptureVideoStabilizationMode.standard.rawValue,
+        "cinematic": AVCaptureVideoStabilizationMode.cinematic.rawValue
+      ]
+    ]
+  }
   
   override class func requiresMainQueueSetup() -> Bool {
     return true
