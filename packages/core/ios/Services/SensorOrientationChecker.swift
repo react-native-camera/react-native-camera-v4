@@ -11,7 +11,7 @@ class SensorOrientationChecker {
   let operationQueue = OperationQueue()
   
   var delegate: SensorOrientationCheckerDelegate?
-  var orientation: UIInterfaceOrientation
+  var orientation: UIInterfaceOrientation?
   
   init() {
     motionManager.accelerometerUpdateInterval = 0.2
@@ -32,8 +32,9 @@ class SensorOrientationChecker {
       
       guard let data = dataOrNil else { return }
       
-      orientation = getOrientationBy(acceleration: data.acceleration)
-      delegate?.orientationSet(orientation: orientation)
+      let currentOrientation = getOrientationBy(acceleration: data.acceleration)
+      orientation = currentOrientation
+      delegate?.orientationSet(orientation: currentOrientation)
     }
   }
   

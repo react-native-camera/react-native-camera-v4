@@ -701,22 +701,13 @@ class RNCamera : UIView, SensorOrientationCheckerDelegate, AVCaptureFileOutputRe
         
         let desiredFps = Double(fps)
         let device = videoInput.device
-        let activeWidth: Int32
-        if #available(iOS 13.0, *) {
-          activeWidth = device.activeFormat.formatDescription.dimensions.width
-        } else {
-          activeWidth = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription).width
-        }
+        let activeWidth = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription).width
         
         var maxWidth: Int32 = 0
         
         device.formats.forEach { format in
-          let formatWidth: Int32
-          if #available(iOS 13.0, *) {
-            formatWidth = format.formatDescription.dimensions.width
-          } else {
-            formatWidth = CMVideoFormatDescriptionGetDimensions(format.formatDescription).width
-          }
+          let formatWidth = CMVideoFormatDescriptionGetDimensions(format.formatDescription).width
+
           if (formatWidth != activeWidth || formatWidth < maxWidth) {
             return
           }

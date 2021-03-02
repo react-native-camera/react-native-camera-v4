@@ -215,7 +215,7 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
   @objc(checkVideoAuthorizationStatus:reject:)
   func checkVideoAuthorizationStatus(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
     #if DEBUG
-    if Bundle.main.object(forInfoDictionaryKey: "NSCameraUsageDescription") != nil {
+    if Bundle.main.object(forInfoDictionaryKey: "NSCameraUsageDescription") == nil {
       rctLogWarn("Checking video permissions without having key 'NSCameraUsageDescription' defined in your Info.plist. If you do not add it your app will crash when being built in release mode. You will have to add it to your Info.plist file, otherwise RNCamera is not allowed to use the camera.  You can learn more about adding permissions here: https://stackoverflow.com/a/38498347/4202031")
       resolve(false)
       return
@@ -230,7 +230,7 @@ class RNCameraManager : RCTViewManager, RNCameraDelegate {
   @objc(checkRecordAudioAuthorizationStatus:reject:)
   func checkRecordAudioAuthorizationStatus(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
     #if DEBUG
-    if Bundle.main.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription") != nil {
+    if Bundle.main.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription") == nil {
       rctLogWarn("Checking audio permissions without having key 'NSMicrophoneUsageDescription' defined in your Info.plist. Audio Recording for your video files is therefore disabled. If you do not need audio on your recordings is is recommended to set the 'captureAudio' property on your component instance to 'false', otherwise you will have to add the key 'NSMicrophoneUsageDescription' to your Info.plist. If you do not your app will crash when being built in release mode. You can learn more about adding permissions here: https://stackoverflow.com/a/38498347/4202031")
       resolve(false)
       return
