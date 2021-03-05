@@ -39,7 +39,7 @@ local.properties
 android.iml
 
 # Cocoapods
-example/ios/Pods
+Pods
 
 # BUCK
 buck-out/
