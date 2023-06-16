@@ -1,15 +1,17 @@
-# React Native Camera
 
-Adds camera capabilities to your react native app.
+# 🚧 🚧 🚧
+## react-native-camera is deprecated.
 
-| Package     | Description     | Version |
-| ----------- | --------------- | ------: |
-| **core**    | Pictures/Videos | alpha   |
-| **barcode** | Read Barcode/QR | alpha   |
+Due to the lack of maintainers and increased code complexity, react-native-camera is now deprecated in favor of [react-native-vision-camera](https://github.com/mrousavy/react-native-vision-camera).
 
-#
+VisionCamera offers new APIs, better performance, improved stability and more features.
+It is actively maintained by [**@mrousavy**](https://github.com/mrousavy) and used in many production apps.
 
-### **New version** - Work in progress
+You can support the development of VisionCamera by [sponsoring **@mrousavy** on GitHub](https://github.com/sponsors/mrousavy).
 
-This is a new and overhauled version of [react-native-camera](https://github.com/react-native-camera/react-native-camera). If you want to contribute please take a look at [the project](https://github.com/react-native-camera/react-native-camera-v4/projects/1) to get started.
+<br />
+<br />
 
+> You can find the old code of react-native-camera [here](https://github.com/react-native-camera/react-native-camera/tree/master).
+
+> See [this issue](https://github.com/react-native-community/react-native-camera/issues/3000) for more details.
